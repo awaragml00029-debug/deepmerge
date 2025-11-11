@@ -4,6 +4,8 @@ interface Resource {
   id: string;
   name: string;
   type: string;
+  size?: number;
+  status?: string;
 }
 
 interface TaskStore {
@@ -12,6 +14,7 @@ interface TaskStore {
   questions: string;
   resources: Resource[];
   setQuestion: (question: string) => void;
+  addResource: (resource: Resource) => void;
   removeResource: (id: string) => void;
   reset: () => void;
   backup: () => any;
@@ -28,6 +31,11 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
   ...initialState,
 
   setQuestion: (question: string) => set({ question, id: Date.now().toString() }),
+
+  addResource: (resource: Resource) =>
+    set((state) => ({
+      resources: [...state.resources, resource],
+    })),
 
   removeResource: (id: string) =>
     set((state) => ({

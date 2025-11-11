@@ -24,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import useKnowledge from "@/hooks/useKnowledge";
 import { useTaskStore } from "@/store/task";
 
 const DEFAULT_USER_PROMPT = "What is the function, structure, and biological role of the gene {geneSymbol} in {organism}? Include information about its pathway, regulation, cofactors, substrates, products, and any recent research findings.";
@@ -99,7 +98,6 @@ export default function GeneResearch({ onStartResearch, isResearching, urlGeneSy
   const [openCrawler, setOpenCrawler] = useState(false);
   const [openKnowledge, setOpenKnowledge] = useState(false);
   const [isCustomOrganism, setIsCustomOrganism] = useState(false);
-  const { generateId } = useKnowledge();
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -167,7 +165,7 @@ export default function GeneResearch({ onStartResearch, isResearching, urlGeneSy
     if (!files) return;
     Array.from(files).forEach((file) => {
       taskStore.addResource({
-        id: generateId("file", { fileMeta: { name: file.name, size: file.size, type: file.type, lastModified: file.lastModified } }),
+        id: `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         type: "file",
         name: file.name,
         size: file.size,

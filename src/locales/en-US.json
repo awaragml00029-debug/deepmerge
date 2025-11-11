@@ -32,6 +32,22 @@
       "rethinking": "Re-research",
       "thinkingQuestion": "Researching..."
     },
+    "progress": {
+      "researching": "Research in Progress",
+      "completed": "Completed",
+      "running": "Running",
+      "error": "Error",
+      "pending": "Pending",
+      "initializing": "Initializing research..."
+    },
+    "results": {
+      "title": "Research Report",
+      "sources": "Sources",
+      "copy": "Copy",
+      "copied": "Copied",
+      "exportMarkdown": "Export as Markdown",
+      "exportPDF": "Export as PDF"
+    },
     "capabilities": {
       "title": "Research Capabilities",
       "generalDescription": "Comprehensive research capabilities with multi-source knowledge integration and intelligent analysis",

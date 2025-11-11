@@ -32,6 +32,22 @@
       "rethinking": "重新研究",
       "thinkingQuestion": "研究中..."
     },
+    "progress": {
+      "researching": "研究进行中",
+      "completed": "已完成",
+      "running": "进行中",
+      "error": "错误",
+      "pending": "等待中",
+      "initializing": "正在初始化研究..."
+    },
+    "results": {
+      "title": "研究报告",
+      "sources": "信息来源",
+      "copy": "复制",
+      "copied": "已复制",
+      "exportMarkdown": "导出为 Markdown",
+      "exportPDF": "导出为 PDF"
+    },
     "capabilities": {
       "title": "研究能力",
       "generalDescription": "综合性研究能力，支持多源知识整合和智能分析",

@@ -28,32 +28,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/Internal/Button";
-import useDeepResearch from "@/hooks/useDeepResearch";
 import useAiProvider from "@/hooks/useAiProvider";
 import useKnowledge from "@/hooks/useKnowledge";
-import useAccurateTimer from "@/hooks/useAccurateTimer";
 import { useGlobalStore } from "@/store/global";
 import { useSettingStore } from "@/store/setting";
 import { useTaskStore } from "@/store/task";
-import { useHistoryStore } from "@/store/history";
 
 const formSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters"),
 });
 
-export default function GeneralResearch() {
+interface GeneralResearchProps {
+  onStartResearch: (question: string, resources?: any[]) => Promise<void>;
+  isResearching: boolean;
+}
+
+export default function GeneralResearch({ onStartResearch, isResearching }: GeneralResearchProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskStore = useTaskStore();
-  const { askQuestions } = useDeepResearch();
   const { hasApiKey } = useAiProvider();
   const { getKnowledgeFromFile } = useKnowledge();
-  const {
-    formattedTime,
-    start: accurateTimerStart,
-    stop: accurateTimerStop,
-  } = useAccurateTimer();
-  const [isThinking, setIsThinking] = useState<boolean>(false);
   const [openCrawler, setOpenCrawler] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -74,29 +69,8 @@ export default function GeneralResearch() {
 
   async function handleSubmit(values: z.infer<typeof formSchema>) {
     if (handleCheck()) {
-      const { id, setQuestion, reset, backup } = useTaskStore.getState();
-      try {
-        setIsThinking(true);
-        accurateTimerStart();
-        if (id !== "") {
-          createNewResearch();
-          form.setValue("topic", values.topic);
-        }
-        setQuestion(values.topic);
-        await askQuestions();
-      } finally {
-        setIsThinking(false);
-        accurateTimerStop();
-      }
+      await onStartResearch(values.topic, taskStore.resources);
     }
-  }
-
-  function createNewResearch() {
-    const { reset, backup, id } = useTaskStore.getState();
-    const { update } = useHistoryStore.getState();
-    if (id) update(id, backup());
-    reset();
-    form.reset();
   }
 
   function openKnowledgeList() {
@@ -187,12 +161,11 @@ export default function GeneralResearch() {
               </div>
             </FormControl>
           </FormItem>
-          <Button className="w-full mt-4" disabled={isThinking} type="submit">
-            {isThinking ? (
+          <Button className="w-full mt-4" disabled={isResearching} type="submit">
+            {isResearching ? (
               <>
                 <LoaderCircle className="animate-spin w-4 h-4 mr-2" />
                 <span>{t("research.common.thinkingQuestion")}</span>
-                <small className="font-mono ml-2">{formattedTime}</small>
               </>
             ) : taskStore.questions === "" ? (
               t("research.common.startThinking")

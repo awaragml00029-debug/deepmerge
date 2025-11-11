@@ -5,13 +5,16 @@ import { SquarePlus } from "lucide-react";
 import ModeSwitch from "@/components/Research/ModeSwitch";
 import GeneralResearch from "@/components/Research/GeneralResearch";
 import GeneResearch from "@/components/Research/GeneResearch";
+import ResearchProgress from "@/components/Research/ResearchProgress";
+import ResearchResults from "@/components/Research/ResearchResults";
 import { Button } from "@/components/Internal/Button";
-import useDeepResearch from "@/hooks/useDeepResearch";
+import useDeepResearch, { ResearchConfig } from "@/hooks/useDeepResearch";
 import useAiProvider from "@/hooks/useAiProvider";
 import useAccurateTimer from "@/hooks/useAccurateTimer";
 import { useSettingStore } from "@/store/setting";
 import { useTaskStore } from "@/store/task";
 import { useHistoryStore } from "@/store/history";
+import { useResearchStore } from "@/store/research";
 
 interface TopicProps {
   urlGeneSymbol?: string;
@@ -27,7 +30,7 @@ function Topic({ urlGeneSymbol, urlOrganism }: TopicProps) {
     start: accurateTimerStart,
     stop: accurateTimerStop,
   } = useAccurateTimer();
-  const [isThinking, setIsThinking] = useState<boolean>(false);
+  const { isResearching, reset: resetResearch } = useResearchStore();
 
   // Auto-switch to gene mode if URL parameters are present
   useEffect(() => {
@@ -47,46 +50,51 @@ function Topic({ urlGeneSymbol, urlOrganism }: TopicProps) {
 
   async function handleGeneResearch(config: any) {
     if (handleCheck()) {
-      const { id, setQuestion, reset, backup } = useTaskStore.getState();
       try {
-        setIsThinking(true);
         accurateTimerStart();
 
         // Create a gene research query
-        let query = `Gene research: ${config.geneSymbol} in ${config.organism}`;
-        if (
-          config.researchFocus &&
-          config.researchFocus.length > 0 &&
-          !config.researchFocus.includes("general")
-        ) {
-          query += ` - Focus: ${config.researchFocus.join(", ")}`;
-        }
-        if (config.specificAspects && config.specificAspects.length > 0) {
-          query += ` - Aspects: ${config.specificAspects.join(", ")}`;
-        }
-        if (config.diseaseContext) {
-          query += ` - Disease: ${config.diseaseContext}`;
-        }
-        if (config.experimentalApproach) {
-          query += ` - Method: ${config.experimentalApproach}`;
-        }
+        let query = `Research ${config.geneSymbol} gene in ${config.organism}`;
 
-        // Add user prompt if provided
-        if (config.userPrompt && config.userPrompt.trim()) {
-          // Replace placeholders in user prompt
-          const userPrompt = config.userPrompt
-            .replace(/{geneSymbol}/g, config.geneSymbol)
-            .replace(/{organism}/g, config.organism);
-          query += `\n\nResearch Question:\n${userPrompt}`;
-        }
+        // Build research config
+        const researchConfig: ResearchConfig = {
+          question: query,
+          mode: "gene",
+          geneConfig: {
+            geneSymbol: config.geneSymbol,
+            organism: config.organism,
+            researchFocus: config.researchFocus || [],
+            specificAspects: config.specificAspects || [],
+            diseaseContext: config.diseaseContext,
+            experimentalApproach: config.experimentalApproach,
+            userPrompt: config.userPrompt,
+          },
+        };
 
-        if (id !== "") {
-          createNewResearch();
-        }
-        setQuestion(query);
-        await askQuestions();
+        await askQuestions(researchConfig);
+      } catch (error) {
+        console.error("Gene research failed:", error);
       } finally {
-        setIsThinking(false);
+        accurateTimerStop();
+      }
+    }
+  }
+
+  async function handleGeneralResearch(question: string, resources?: any[]) {
+    if (handleCheck()) {
+      try {
+        accurateTimerStart();
+
+        const researchConfig: ResearchConfig = {
+          question,
+          mode: "general",
+          resources,
+        };
+
+        await askQuestions(researchConfig);
+      } catch (error) {
+        console.error("General research failed:", error);
+      } finally {
         accurateTimerStop();
       }
     }
@@ -97,42 +105,51 @@ function Topic({ urlGeneSymbol, urlOrganism }: TopicProps) {
     const { update } = useHistoryStore.getState();
     if (id) update(id, backup());
     reset();
+    resetResearch();
   }
 
   return (
-    <section className="p-4 border rounded-md mt-4 print:hidden">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">
-          {t("research.topic.title")}
-        </h2>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={createNewResearch}
-            disabled={isThinking}
-          >
-            <SquarePlus className="w-4 h-4 mr-1" />
-            {t("research.topic.newResearch")}
-          </Button>
+    <>
+      <section className="p-4 border rounded-md mt-4 print:hidden">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">
+            {t("research.topic.title")}
+          </h2>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={createNewResearch}
+              disabled={isResearching}
+            >
+              <SquarePlus className="w-4 h-4 mr-1" />
+              {t("research.topic.newResearch")}
+            </Button>
+          </div>
         </div>
-      </div>
 
-      {/* Mode Switch */}
-      <ModeSwitch mode={researchMode} onChange={setResearchMode} />
+        {/* Mode Switch */}
+        <ModeSwitch mode={researchMode} onChange={setResearchMode} />
 
-      {/* Conditional Rendering based on Research Mode */}
-      {researchMode === "general" ? (
-        <GeneralResearch />
-      ) : (
-        <GeneResearch
-          onStartResearch={handleGeneResearch}
-          isResearching={isThinking}
-          urlGeneSymbol={urlGeneSymbol}
-          urlOrganism={urlOrganism}
-        />
-      )}
-    </section>
+        {/* Conditional Rendering based on Research Mode */}
+        {researchMode === "general" ? (
+          <GeneralResearch onStartResearch={handleGeneralResearch} isResearching={isResearching} />
+        ) : (
+          <GeneResearch
+            onStartResearch={handleGeneResearch}
+            isResearching={isResearching}
+            urlGeneSymbol={urlGeneSymbol}
+            urlOrganism={urlOrganism}
+          />
+        )}
+      </section>
+
+      {/* Research Progress */}
+      <ResearchProgress />
+
+      {/* Research Results */}
+      <ResearchResults />
+    </>
   );
 }
 
