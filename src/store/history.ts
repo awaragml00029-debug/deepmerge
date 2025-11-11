@@ -1,35 +1,91 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, type StorageValue } from "zustand/middleware";
+import type { TaskStore } from "./task";
+import { researchStore } from "@/utils/storage";
+import { customAlphabet } from "nanoid";
+import { clone, pick } from "radash";
 
-interface HistoryItem {
-  id: string;
-  question: string;
-  answer?: string;
-  mode?: "general" | "gene";
-  timestamp: number;
+export interface ResearchHistory extends TaskStore {
+  createdAt: number;
+  updatedAt?: number;
 }
 
-interface HistoryStore {
-  items: HistoryItem[];
-  addHistory: (item: HistoryItem) => void;
-  update: (id: string, data: any) => void;
+export interface HistoryStore {
+  history: ResearchHistory[];
 }
 
-export const useHistoryStore = create<HistoryStore>()(
-  persist(
-    (set) => ({
-      items: [],
-      addHistory: (item: HistoryItem) =>
+interface HistoryActions {
+  save: (taskStore: TaskStore) => string;
+  load: (id: string) => TaskStore | void;
+  update: (id: string, taskStore: TaskStore) => boolean;
+  remove: (id: string) => boolean;
+}
+
+const nanoid = customAlphabet("1234567890abcdefghijklmnopqrstuvwxyz", 12);
+
+export const useHistoryStore = create(
+  persist<HistoryStore & HistoryActions>(
+    (set, get) => ({
+      history: [],
+      save: (taskStore) => {
+        // Only tasks with a title and final report are saved to the history
+        if (taskStore.title && taskStore.finalReport) {
+          const id = nanoid();
+          const newHistory: ResearchHistory = {
+            ...clone(taskStore),
+            id,
+            createdAt: Date.now(),
+          };
+          set((state) => ({ history: [newHistory, ...state.history] }));
+          return id;
+        }
+        return "";
+      },
+      load: (id) => {
+        const current = get().history.find((item) => item.id === id);
+        if (current) return clone(current);
+      },
+      update: (id, taskStore) => {
+        const newHistory = get().history.map((item) => {
+          if (item.id === id) {
+            return {
+              ...clone(taskStore),
+              updatedAt: Date.now(),
+            } as ResearchHistory;
+          } else {
+            return item;
+          }
+        });
+        set(() => ({ history: [...newHistory] }));
+        return true;
+      },
+      remove: (id) => {
         set((state) => ({
-          items: [...state.items, item],
-        })),
-      update: (id: string, data: any) =>
-        set((state) => ({
-          items: [...state.items, { id, ...data, timestamp: Date.now() }],
-        })),
+          history: state.history.filter((item) => item.id !== id),
+        }));
+        return true;
+      },
     }),
     {
-      name: "history-storage",
+      name: "historyStore",
+      version: 1,
+      storage: {
+        getItem: async (key: string) => {
+          return await researchStore.getItem<
+            StorageValue<HistoryStore & HistoryActions>
+          >(key);
+        },
+        setItem: async (
+          key: string,
+          store: StorageValue<HistoryStore & HistoryActions>
+        ) => {
+          return await researchStore.setItem(key, {
+            state: pick(store.state, ["history"]),
+            version: store.version,
+          });
+        },
+        removeItem: async (key: string) => await researchStore.removeItem(key),
+      },
     }
   )
 );

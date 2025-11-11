@@ -1,8 +1,8 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
-  LoaderCircle,
   FilePlus,
   BookText,
   Paperclip,
@@ -13,7 +13,6 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ResourceList from "@/components/Knowledge/ResourceList";
 import Crawler from "@/components/Knowledge/Crawler";
-import { Button } from "@/components/Internal/Button";
 import {
   Form,
   FormControl,
@@ -28,10 +27,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import useAiProvider from "@/hooks/useAiProvider";
 import useKnowledge from "@/hooks/useKnowledge";
 import { useGlobalStore } from "@/store/global";
-import { useSettingStore } from "@/store/setting";
 import { useTaskStore } from "@/store/task";
 
 const formSchema = z.object({
@@ -39,44 +36,26 @@ const formSchema = z.object({
 });
 
 interface GeneralResearchProps {
-  onStartResearch: (topic: string) => Promise<void>;
-  isResearching: boolean;
-  formattedTime: string;
+  defaultTopic: string;
+  onTopicChange: (topic: string) => void;
 }
 
 export default function GeneralResearch({
-  onStartResearch,
-  isResearching,
-  formattedTime,
+  defaultTopic,
+  onTopicChange,
 }: GeneralResearchProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskStore = useTaskStore();
-  const { hasApiKey } = useAiProvider();
   const { getKnowledgeFromFile } = useKnowledge();
   const [openCrawler, setOpenCrawler] = useState<boolean>(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      topic: taskStore.question,
+      topic: defaultTopic,
     },
   });
-
-  function handleCheck(): boolean {
-    const { mode } = useSettingStore.getState();
-    if (!hasApiKey(mode)) {
-      alert(t("setting.apiKeyRequired"));
-      return false;
-    }
-    return true;
-  }
-
-  async function handleSubmit(values: z.infer<typeof formSchema>) {
-    if (handleCheck()) {
-      await onStartResearch(values.topic);
-    }
-  }
 
   function openKnowledgeList() {
     const { setOpenKnowledge } = useGlobalStore.getState();
@@ -95,90 +74,71 @@ export default function GeneralResearch({
     }
   }
 
-  useEffect(() => {
-    form.setValue("topic", taskStore.question);
-  }, [taskStore.question, form]);
-
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
-          <FormField
-            control={form.control}
-            name="topic"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="mb-2 text-base font-semibold">
-                  {t("research.topic.topicLabel")}
-                </FormLabel>
-                <FormControl>
-                  <Textarea
-                    rows={3}
-                    placeholder={t("research.topic.topicPlaceholder")}
-                    {...field}
-                  />
-                </FormControl>
-              </FormItem>
-            )}
-          />
-          <FormItem className="mt-2">
-            <FormLabel className="mb-2 text-base font-semibold">
-              {t("knowledge.localResourceTitle")}
-            </FormLabel>
-            <FormControl onSubmit={(ev) => ev.stopPropagation()}>
-              <div>
-                {taskStore.resources.length > 0 ? (
-                  <ResourceList
-                    className="pb-2 mb-2 border-b"
-                    resources={taskStore.resources}
-                    onRemove={taskStore.removeResource}
-                  />
-                ) : null}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <div className="inline-flex border p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
-                      <FilePlus className="w-5 h-5" />
-                      <span className="ml-1">{t("knowledge.addResource")}</span>
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onClick={() => openKnowledgeList()}>
-                      <BookText />
-                      <span>{t("knowledge.knowledge")}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() =>
-                        handleCheck() && fileInputRef.current?.click()
-                      }
-                    >
-                      <Paperclip />
-                      <span>{t("knowledge.localFile")}</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => handleCheck() && setOpenCrawler(true)}
-                    >
-                      <Link />
-                      <span>{t("knowledge.webPage")}</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
-            </FormControl>
-          </FormItem>
-          <Button className="w-full mt-4" disabled={isResearching} type="submit">
-            {isResearching ? (
-              <>
-                <LoaderCircle className="animate-spin" />
-                <span>{t("research.common.thinkingQuestion")}</span>
-                <small className="font-mono">{formattedTime}</small>
-              </>
-            ) : taskStore.questions === "" ? (
-              t("research.common.startThinking")
-            ) : (
-              t("research.common.rethinking")
-            )}
-          </Button>
-        </form>
+        <FormField
+          control={form.control}
+          name="topic"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel className="mb-2 text-base font-semibold">
+                {t("research.topic.topicLabel")}
+              </FormLabel>
+              <FormControl>
+                <Textarea
+                  rows={3}
+                  placeholder={t("research.topic.topicPlaceholder")}
+                  {...field}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    onTopicChange(e.target.value);
+                  }}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <FormItem className="mt-2">
+          <FormLabel className="mb-2 text-base font-semibold">
+            {t("knowledge.localResourceTitle")}
+          </FormLabel>
+          <FormControl onSubmit={(ev) => ev.stopPropagation()}>
+            <div>
+              {taskStore.resources.length > 0 ? (
+                <ResourceList
+                  className="pb-2 mb-2 border-b"
+                  resources={taskStore.resources}
+                  onRemove={taskStore.removeResource}
+                />
+              ) : null}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <div className="inline-flex border p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
+                    <FilePlus className="w-5 h-5" />
+                    <span className="ml-1">{t("knowledge.addResource")}</span>
+                  </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                  <DropdownMenuItem onClick={() => openKnowledgeList()}>
+                    <BookText />
+                    <span>{t("knowledge.knowledge")}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Paperclip />
+                    <span>{t("knowledge.localFile")}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setOpenCrawler(true)}>
+                    <Link />
+                    <span>{t("knowledge.webPage")}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </FormControl>
+        </FormItem>
       </Form>
       <input
         ref={fileInputRef}
@@ -190,7 +150,7 @@ export default function GeneralResearch({
       <Crawler
         open={openCrawler}
         onClose={() => setOpenCrawler(false)}
-      />
+      ></Crawler>
     </>
   );
 }

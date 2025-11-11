@@ -1,41 +1,65 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
-export default function useAccurateTimer() {
-  const [formattedTime, setFormattedTime] = useState("00:00");
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startTimeRef = useRef<number>(0);
+function useAccurateTimer() {
+  const [time, setTime] = useState(0);
+  const [isRunning, setIsRunning] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
 
+  // Format time, recalculate only when time changes
+  const formattedTime = useMemo(() => {
+    const seconds = Math.floor(time / 1000);
+    const milliseconds = time % 1000;
+    return `${seconds}.${Math.floor(milliseconds / 100)
+      .toString()
+      .padStart(1, "0")}s`;
+  }, [time]);
+
+  // Use useCallback to optimize start and stop functions to avoid unnecessary re-rendering
   function start() {
-    startTimeRef.current = Date.now();
-    intervalRef.current = setInterval(() => {
-      const elapsed = Math.floor((Date.now() - startTimeRef.current) / 1000);
-      const minutes = Math.floor(elapsed / 60);
-      const seconds = elapsed % 60;
-      setFormattedTime(
-        `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
-      );
-    }, 1000);
+    setTime(0);
+    if (!timerRef.current) {
+      setIsRunning(true);
+      // Record the start time, taking into account the pause situation
+      startTimeRef.current = Date.now() - time;
+
+      const tick = () => {
+        if (startTimeRef.current !== null) {
+          setTime(Date.now() - startTimeRef.current);
+          // Using requestAnimationFrame
+          timerRef.current = requestAnimationFrame(tick);
+        }
+      };
+
+      // Start the animation frame loop
+      timerRef.current = requestAnimationFrame(tick);
+    }
   }
 
   function stop() {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (timerRef.current) {
+      setIsRunning(false);
+      cancelAnimationFrame(timerRef.current);
+      timerRef.current = null;
     }
-    setFormattedTime("00:00");
+    setTime(0);
   }
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+      if (timerRef.current) {
+        cancelAnimationFrame(timerRef.current);
       }
     };
   }, []);
 
   return {
+    time,
     formattedTime,
+    isRunning,
     start,
     stop,
   };
 }
+
+export default useAccurateTimer;
