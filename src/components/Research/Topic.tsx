@@ -107,6 +107,9 @@ Focus areas: ${focusAreas}${aspects}${disease}${methods}${custom}`;
 
   return (
     <>
+      {/* Research Capabilities Display */}
+      <ResearchCapabilities mode={researchMode} />
+
       <section className="p-4 border rounded-md mt-4 print:hidden">
         <div className="flex justify-between items-center border-b mb-2">
           <h3 className="font-semibold text-lg leading-10">
@@ -160,9 +163,6 @@ Focus areas: ${focusAreas}${aspects}${disease}${methods}${custom}`;
           )}
         </Button>
       </section>
-
-      {/* Research Capabilities Display */}
-      <ResearchCapabilities mode={researchMode} />
     </>
   );
 }
