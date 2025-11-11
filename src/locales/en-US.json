@@ -1,4 +1,16 @@
 {
+  "header": {
+    "subtitle": "Unified platform combining general research with specialized gene research"
+  },
+  "footer": {
+    "about": "About",
+    "aboutText": "Deep Research Platform is a unified platform that combines general research and professional gene research capabilities, providing powerful AI-driven research tools for researchers.",
+    "links": "Links",
+    "documentation": "Documentation",
+    "version": "Version",
+    "poweredBy": "Powered by Next.js, React, and AI",
+    "copyright": "© 2025 Deep Research Platform. All rights reserved."
+  },
   "research": {
     "topic": {
       "title": "Research Topic",

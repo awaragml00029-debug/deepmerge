@@ -1,4 +1,16 @@
 {
+  "header": {
+    "subtitle": "融合通用研究与专业基因研究的统一平台"
+  },
+  "footer": {
+    "about": "关于",
+    "aboutText": "Deep Research Platform 是一个融合了通用研究和专业基因研究功能的统一平台，为研究人员提供强大的AI驱动研究工具。",
+    "links": "链接",
+    "documentation": "文档",
+    "version": "版本",
+    "poweredBy": "由 Next.js、React 和 AI 驱动",
+    "copyright": "© 2025 Deep Research Platform. All rights reserved."
+  },
   "research": {
     "topic": {
       "title": "研究主题",
