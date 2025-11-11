@@ -27,6 +27,7 @@ function Topic({ urlGeneSymbol, urlOrganism }: TopicProps) {
   const { askQuestions } = useDeepResearch();
   const { hasApiKey } = useAiProvider();
   const {
+    formattedTime,
     start: accurateTimerStart,
     stop: accurateTimerStop,
   } = useAccurateTimer();
@@ -133,7 +134,11 @@ function Topic({ urlGeneSymbol, urlOrganism }: TopicProps) {
 
         {/* Conditional Rendering based on Research Mode */}
         {researchMode === "general" ? (
-          <GeneralResearch onStartResearch={handleGeneralResearch} isResearching={isResearching} />
+          <GeneralResearch
+            onStartResearch={handleGeneralResearch}
+            isResearching={isResearching}
+            formattedTime={formattedTime}
+          />
         ) : (
           <GeneResearch
             onStartResearch={handleGeneResearch}

@@ -87,7 +87,8 @@
     "addResource": "Add Resource",
     "knowledge": "Knowledge Base",
     "localFile": "Local File",
-    "webPage": "Web Page"
+    "webPage": "Web Page",
+    "webCrawler": "Web Crawler"
   },
   "setting": {
     "title": "Settings",

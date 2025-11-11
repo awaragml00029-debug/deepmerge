@@ -87,7 +87,8 @@
     "addResource": "添加资源",
     "knowledge": "知识库",
     "localFile": "本地文件",
-    "webPage": "网页"
+    "webPage": "网页",
+    "webCrawler": "网页爬虫"
   },
   "setting": {
     "title": "设置",

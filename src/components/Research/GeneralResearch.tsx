@@ -13,6 +13,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ResourceList from "@/components/Knowledge/ResourceList";
 import Crawler from "@/components/Knowledge/Crawler";
+import { Button } from "@/components/Internal/Button";
 import {
   Form,
   FormControl,
@@ -27,7 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/Internal/Button";
 import useAiProvider from "@/hooks/useAiProvider";
 import useKnowledge from "@/hooks/useKnowledge";
 import { useGlobalStore } from "@/store/global";
@@ -35,15 +35,20 @@ import { useSettingStore } from "@/store/setting";
 import { useTaskStore } from "@/store/task";
 
 const formSchema = z.object({
-  topic: z.string().min(2, "Topic must be at least 2 characters"),
+  topic: z.string().min(2),
 });
 
 interface GeneralResearchProps {
-  onStartResearch: (question: string, resources?: any[]) => Promise<void>;
+  onStartResearch: (topic: string) => Promise<void>;
   isResearching: boolean;
+  formattedTime: string;
 }
 
-export default function GeneralResearch({ onStartResearch, isResearching }: GeneralResearchProps) {
+export default function GeneralResearch({
+  onStartResearch,
+  isResearching,
+  formattedTime,
+}: GeneralResearchProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const taskStore = useTaskStore();
@@ -54,7 +59,7 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      topic: taskStore.question || "",
+      topic: taskStore.question,
     },
   });
 
@@ -69,7 +74,7 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
 
   async function handleSubmit(values: z.infer<typeof formSchema>) {
     if (handleCheck()) {
-      await onStartResearch(values.topic, taskStore.resources);
+      await onStartResearch(values.topic);
     }
   }
 
@@ -80,7 +85,7 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
 
   async function handleFileUpload(files: FileList | null) {
     if (files) {
-      for (const file of Array.from(files)) {
+      for await (const file of files) {
         await getKnowledgeFromFile(file);
       }
       // Clear the input file to avoid processing the previous file multiple times
@@ -95,7 +100,7 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
   }, [taskStore.question, form]);
 
   return (
-    <div>
+    <>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
           <FormField
@@ -110,20 +115,19 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
                   <Textarea
                     rows={3}
                     placeholder={t("research.topic.topicPlaceholder")}
-                    className="resize-none"
                     {...field}
                   />
                 </FormControl>
               </FormItem>
             )}
           />
-          <FormItem className="mt-4">
+          <FormItem className="mt-2">
             <FormLabel className="mb-2 text-base font-semibold">
               {t("knowledge.localResourceTitle")}
             </FormLabel>
             <FormControl onSubmit={(ev) => ev.stopPropagation()}>
               <div>
-                {taskStore.resources && taskStore.resources.length > 0 ? (
+                {taskStore.resources.length > 0 ? (
                   <ResourceList
                     className="pb-2 mb-2 border-b"
                     resources={taskStore.resources}
@@ -132,14 +136,14 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
                 ) : null}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <div className="inline-flex border p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                    <div className="inline-flex border p-2 rounded-md text-sm cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800">
                       <FilePlus className="w-5 h-5" />
                       <span className="ml-1">{t("knowledge.addResource")}</span>
                     </div>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
                     <DropdownMenuItem onClick={() => openKnowledgeList()}>
-                      <BookText className="w-4 h-4 mr-2" />
+                      <BookText />
                       <span>{t("knowledge.knowledge")}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -147,13 +151,13 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
                         handleCheck() && fileInputRef.current?.click()
                       }
                     >
-                      <Paperclip className="w-4 h-4 mr-2" />
+                      <Paperclip />
                       <span>{t("knowledge.localFile")}</span>
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       onClick={() => handleCheck() && setOpenCrawler(true)}
                     >
-                      <Link className="w-4 h-4 mr-2" />
+                      <Link />
                       <span>{t("knowledge.webPage")}</span>
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -164,8 +168,9 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
           <Button className="w-full mt-4" disabled={isResearching} type="submit">
             {isResearching ? (
               <>
-                <LoaderCircle className="animate-spin w-4 h-4 mr-2" />
+                <LoaderCircle className="animate-spin" />
                 <span>{t("research.common.thinkingQuestion")}</span>
+                <small className="font-mono">{formattedTime}</small>
               </>
             ) : taskStore.questions === "" ? (
               t("research.common.startThinking")
@@ -182,7 +187,10 @@ export default function GeneralResearch({ onStartResearch, isResearching }: Gene
         hidden
         onChange={(ev) => handleFileUpload(ev.target.files)}
       />
-      <Crawler open={openCrawler} onClose={() => setOpenCrawler(false)} />
-    </div>
+      <Crawler
+        open={openCrawler}
+        onClose={() => setOpenCrawler(false)}
+      />
+    </>
   );
 }
