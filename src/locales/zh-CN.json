@@ -74,6 +74,16 @@
     "webPage": "网页"
   },
   "setting": {
-    "apiKeyRequired": "请先配置API密钥"
+    "title": "设置",
+    "apiKeyRequired": "请先配置API密钥",
+    "aiProvider": "AI 提供商",
+    "aiProviderDesc": "选择您要使用的 AI 服务提供商",
+    "selectProvider": "选择提供商",
+    "searchProvider": "搜索提供商",
+    "searchProviderDesc": "选择用于网络搜索的服务提供商",
+    "selectSearchProvider": "选择搜索服务",
+    "getKeyFrom": "从以下网站获取 API Key：",
+    "save": "保存",
+    "cancel": "取消"
   }
 }

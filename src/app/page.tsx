@@ -1,11 +1,12 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { Moon, Sun, Github } from "lucide-react";
+import { Moon, Sun, Github, Settings as SettingsIcon } from "lucide-react";
 import { useTheme } from "next-themes";
 import Topic from "@/components/Research/Topic";
 import ResearchCapabilities from "@/components/Research/ResearchCapabilities";
+import Setting from "@/components/Setting";
 import { Button } from "@/components/Internal/Button";
 import {
   DropdownMenu,
@@ -28,7 +29,7 @@ function TopicWithParams() {
   );
 }
 
-function Header() {
+function Header({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { t, i18n } = useTranslation();
   const { theme, setTheme } = useTheme();
 
@@ -46,6 +47,17 @@ function Header() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Settings Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onOpenSettings}
+              title={t("setting.title")}
+            >
+              <SettingsIcon className="h-5 w-5" />
+              <span className="sr-only">{t("setting.title")}</span>
+            </Button>
+
             {/* Language Switcher */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -148,9 +160,12 @@ function Footer() {
 }
 
 export default function Home() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
   return (
     <div className="min-h-screen flex flex-col">
-      <Header />
+      <Header onOpenSettings={() => setSettingsOpen(true)} />
+      <Setting open={settingsOpen} onClose={() => setSettingsOpen(false)} />
 
       <main className="flex-1">
         <div className="max-lg:max-w-screen-md max-w-screen-lg mx-auto px-4 pb-8">

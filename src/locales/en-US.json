@@ -74,6 +74,16 @@
     "webPage": "Web Page"
   },
   "setting": {
-    "apiKeyRequired": "Please configure API key first"
+    "title": "Settings",
+    "apiKeyRequired": "Please configure API key first",
+    "aiProvider": "AI Provider",
+    "aiProviderDesc": "Choose the AI service provider you want to use",
+    "selectProvider": "Select Provider",
+    "searchProvider": "Search Provider",
+    "searchProviderDesc": "Choose the service provider for web search",
+    "selectSearchProvider": "Select Search Service",
+    "getKeyFrom": "Get API Key from:",
+    "save": "Save",
+    "cancel": "Cancel"
   }
 }
