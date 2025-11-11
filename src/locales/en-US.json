@@ -1,0 +1,67 @@
+{
+  "research": {
+    "topic": {
+      "title": "Research Topic",
+      "newResearch": "New Research",
+      "topicLabel": "Research Topic",
+      "topicPlaceholder": "Enter the topic you want to research in depth...",
+      "geneSymbolLabel": "Gene Symbol",
+      "organismLabel": "Organism"
+    },
+    "mode": {
+      "title": "Research Mode",
+      "general": "General Research",
+      "gene": "Gene Research",
+      "generalDescription": "In-depth research for various topics with file upload, web crawler, and knowledge base support",
+      "geneDescription": "Professional gene function research with multi-organism support, research focus selection, and biological database integration"
+    },
+    "common": {
+      "startThinking": "Start Research",
+      "rethinking": "Re-research",
+      "thinkingQuestion": "Researching..."
+    },
+    "capabilities": {
+      "title": "Research Capabilities",
+      "generalDescription": "Comprehensive research capabilities with multi-source knowledge integration and intelligent analysis",
+      "geneDescription": "Professional gene research capabilities powered by advanced AI and biological databases",
+      "general": {
+        "multiSource": "Multi-Source Integration",
+        "multiSourceDesc": "Integrate documents, web pages, knowledge bases and more",
+        "intelligentQA": "Intelligent Q&A System",
+        "intelligentQADesc": "AI-powered question answering and reasoning",
+        "deepAnalysis": "Deep Literature Analysis",
+        "deepAnalysisDesc": "Automatic analysis and synthesis of extensive literature",
+        "autoReport": "Automated Report Generation",
+        "autoReportDesc": "Generate structured, professional research reports",
+        "knowledgeGraph": "Knowledge Graph Construction",
+        "knowledgeGraphDesc": "Automatically build concept relationships and knowledge networks",
+        "multiLanguage": "Multi-Language Support",
+        "multiLanguageDesc": "Support for Chinese, English, and more"
+      },
+      "gene": {
+        "molecular": "Molecular Function",
+        "molecularDesc": "Catalytic activity, binding sites, enzyme classification",
+        "structure": "Protein Structure",
+        "structureDesc": "Domains, motifs, 3D structure, post-translational modifications",
+        "expression": "Expression Analysis",
+        "expressionDesc": "Tissue specificity, developmental patterns, regulation",
+        "interactions": "Protein Interactions",
+        "interactionsDesc": "Protein-protein, DNA/RNA binding, small molecule interactions",
+        "disease": "Disease Associations",
+        "diseaseDesc": "Mutations, phenotypes, therapeutic potential",
+        "evolution": "Evolutionary Analysis",
+        "evolutionDesc": "Orthologs, paralogs, conservation, gene family"
+      }
+    }
+  },
+  "knowledge": {
+    "localResourceTitle": "Local Resources",
+    "addResource": "Add Resource",
+    "knowledge": "Knowledge Base",
+    "localFile": "Local File",
+    "webPage": "Web Page"
+  },
+  "setting": {
+    "apiKeyRequired": "Please configure API key first"
+  }
+}

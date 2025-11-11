@@ -1,0 +1,67 @@
+{
+  "research": {
+    "topic": {
+      "title": "研究主题",
+      "newResearch": "新研究",
+      "topicLabel": "研究主题",
+      "topicPlaceholder": "请输入您想要深入研究的主题...",
+      "geneSymbolLabel": "基因符号",
+      "organismLabel": "生物体"
+    },
+    "mode": {
+      "title": "研究模式",
+      "general": "通用研究",
+      "gene": "基因研究",
+      "generalDescription": "适用于各种主题的深度研究，支持文件上传、网页爬虫和知识库集成",
+      "geneDescription": "专业基因功能研究，支持多物种、研究焦点选择和生物数据库集成"
+    },
+    "common": {
+      "startThinking": "开始研究",
+      "rethinking": "重新研究",
+      "thinkingQuestion": "研究中..."
+    },
+    "capabilities": {
+      "title": "研究能力",
+      "generalDescription": "综合性研究能力，支持多源知识整合和智能分析",
+      "geneDescription": "专业基因研究能力，结合先进AI和生物数据库",
+      "general": {
+        "multiSource": "多源知识整合",
+        "multiSourceDesc": "整合文档、网页、知识库等多种信息源",
+        "intelligentQA": "智能问答系统",
+        "intelligentQADesc": "基于深度学习的智能问答和推理",
+        "deepAnalysis": "深度文献分析",
+        "deepAnalysisDesc": "自动分析和综合大量文献资料",
+        "autoReport": "自动报告生成",
+        "autoReportDesc": "生成结构化、专业的研究报告",
+        "knowledgeGraph": "知识图谱构建",
+        "knowledgeGraphDesc": "自动构建概念关系和知识网络",
+        "multiLanguage": "多语言支持",
+        "multiLanguageDesc": "支持中文、英文等多种语言"
+      },
+      "gene": {
+        "molecular": "分子功能分析",
+        "molecularDesc": "催化活性、结合位点、酶分类",
+        "structure": "蛋白质结构",
+        "structureDesc": "结构域、基序、3D结构、翻译后修饰",
+        "expression": "表达分析",
+        "expressionDesc": "组织特异性、发育模式、调控",
+        "interactions": "蛋白质相互作用",
+        "interactionsDesc": "蛋白-蛋白、DNA/RNA结合、小分子相互作用",
+        "disease": "疾病关联",
+        "diseaseDesc": "突变、表型、治疗潜力",
+        "evolution": "进化分析",
+        "evolutionDesc": "同源基因、旁系同源、保守性、基因家族"
+      }
+    }
+  },
+  "knowledge": {
+    "localResourceTitle": "本地资源",
+    "addResource": "添加资源",
+    "knowledge": "知识库",
+    "localFile": "本地文件",
+    "webPage": "网页"
+  },
+  "setting": {
+    "apiKeyRequired": "请先配置API密钥"
+  }
+}
