@@ -34,6 +34,7 @@ interface Source {
   content?: string;
   url: string;
   images?: ImageSource[];
+  formattedCitation?: string;  // Google Gemini formatted citation (HTML, APA format)
 }
 
 interface SearchTask {

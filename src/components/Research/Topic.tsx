@@ -8,7 +8,6 @@ import {
 import ModeSwitch from "@/components/Research/ModeSwitch";
 import GeneralResearch from "@/components/Research/GeneralResearch";
 import GeneResearch from "@/components/Research/GeneResearch";
-import ResearchCapabilities from "@/components/Research/ResearchCapabilities";
 import { Button } from "@/components/Internal/Button";
 import useDeepResearch from "@/hooks/useDeepResearch";
 import useAiProvider from "@/hooks/useAiProvider";
@@ -60,23 +59,36 @@ function Topic({ urlGeneSymbol, urlOrganism }: TopicProps) {
         // Build the question based on research mode
         let question = currentTopic;
         if (researchMode === "gene" && geneConfig) {
-          // Build gene research question
-          const focusAreas = geneConfig.researchFoci?.join(", ") || "";
-          const aspects = geneConfig.specificAspects?.length > 0
-            ? `\nSpecific aspects: ${geneConfig.specificAspects.join(", ")}`
-            : "";
-          const disease = geneConfig.diseaseContext
-            ? `\nDisease context: ${geneConfig.diseaseContext}`
-            : "";
-          const methods = geneConfig.experimentalApproach
-            ? `\nExperimental methods: ${geneConfig.experimentalApproach}`
-            : "";
-          const custom = geneConfig.userPrompt
-            ? `\n\nAdditional instructions: ${geneConfig.userPrompt}`
-            : "";
+          // Build gene research query - aligned with DeepGeneResearch format
+          let query = `Gene research: ${geneConfig.geneSymbol} in ${geneConfig.organism}`;
 
-          question = `Research the gene ${geneConfig.geneSymbol} in ${geneConfig.organism}.
-Focus areas: ${focusAreas}${aspects}${disease}${methods}${custom}`;
+          // Only show Focus if not 'general'
+          if (geneConfig.researchFoci &&
+              geneConfig.researchFoci.length > 0 &&
+              !geneConfig.researchFoci.includes('general')) {
+            query += ` - Focus: ${geneConfig.researchFoci.join(', ')}`;
+          }
+
+          // All optional fields use " - " separator (single-line format)
+          if (geneConfig.specificAspects && geneConfig.specificAspects.length > 0) {
+            query += ` - Aspects: ${geneConfig.specificAspects.join(', ')}`;
+          }
+          if (geneConfig.diseaseContext) {
+            query += ` - Disease: ${geneConfig.diseaseContext}`;
+          }
+          if (geneConfig.experimentalApproach) {
+            query += ` - Method: ${geneConfig.experimentalApproach}`;
+          }
+
+          // User prompt with placeholder replacement
+          if (geneConfig.userPrompt && geneConfig.userPrompt.trim()) {
+            const userPrompt = geneConfig.userPrompt
+              .replace(/{geneSymbol}/g, geneConfig.geneSymbol)
+              .replace(/{organism}/g, geneConfig.organism);
+            query += `\n\nResearch Question:\n${userPrompt}`;
+          }
+
+          question = query;
         }
 
         setQuestion(question);
@@ -107,9 +119,6 @@ Focus areas: ${focusAreas}${aspects}${disease}${methods}${custom}`;
 
   return (
     <>
-      {/* Research Capabilities Display */}
-      <ResearchCapabilities mode={researchMode} />
-
       <section className="p-4 border rounded-md mt-4 print:hidden">
         <div className="flex justify-between items-center border-b mb-2">
           <h3 className="font-semibold text-lg leading-10">

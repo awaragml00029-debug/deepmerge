@@ -36,6 +36,7 @@ import useDeepResearch from "@/hooks/useDeepResearch";
 import useKnowledge from "@/hooks/useKnowledge";
 import { useTaskStore } from "@/store/task";
 import { useKnowledgeStore } from "@/store/knowledge";
+import { useSettingStore } from "@/store/setting";
 import { getSystemPrompt } from "@/utils/deep-research/prompts";
 import { downloadFile } from "@/utils/file";
 import { markdownToDoc } from "@/utils/markdown";
@@ -51,6 +52,7 @@ const formSchema = z.object({
 function FinalReport() {
   const { t } = useTranslation();
   const taskStore = useTaskStore();
+  const { researchMode } = useSettingStore();
   const { status, writeFinalReport } = useDeepResearch();
   const { generateId } = useKnowledge();
   const {
@@ -110,10 +112,18 @@ function FinalReport() {
               total: sources.length,
             })}`,
             `${sources
-              .map(
-                (source, idx) =>
-                  `${idx + 1}. [${source.title || source.url}][${idx + 1}]`
-              )
+              .map((source, idx) => {
+                // Gene mode: prioritize formatted citation
+                if (researchMode === "gene" && source.formattedCitation) {
+                  // Remove HTML tags for Markdown export
+                  const plainCitation = source.formattedCitation
+                    .replace(/<[^>]+>/g, '')
+                    .trim();
+                  return `${idx + 1}. ${plainCitation}`;
+                } else {
+                  return `${idx + 1}. [${source.title || source.url}][${idx + 1}]`;
+                }
+              })
               .join("\n")}`,
           ].join("\n")
         : "",
@@ -282,13 +292,22 @@ function FinalReport() {
                 </h2>
                 <ol>
                   {taskStore.sources.map((source, idx) => {
-                    return (
-                      <li key={idx}>
-                        <a href={source.url} target="_blank">
-                          {source.title || source.url}
-                        </a>
-                      </li>
-                    );
+                    // Gene mode: prioritize formatted citation (HTML format)
+                    if (researchMode === "gene" && source.formattedCitation) {
+                      return (
+                        <li key={idx}>
+                          <div dangerouslySetInnerHTML={{ __html: source.formattedCitation }} />
+                        </li>
+                      );
+                    } else {
+                      return (
+                        <li key={idx}>
+                          <a href={source.url} target="_blank">
+                            {source.title || source.url}
+                          </a>
+                        </li>
+                      );
+                    }
                   })}
                 </ol>
               </div>
