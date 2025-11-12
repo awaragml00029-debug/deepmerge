@@ -230,6 +230,28 @@ Please write according to the user's writing requirements, if any:
 
 Write a final report based on the report plan using the learnings from research.
 Make it as detailed as possible, aim for 5 pages or more, the more the better, include ALL the learnings from research.
+
+**IMPORTANT: Do NOT include the following sections that are not relevant to the research topic:**
+- Data Availability & Reproducibility Bundle
+- Code & Protocols
+- Strain & Plasmid Requests
+- Materials and Methods (unless specifically about the research topic)
+- Supplementary Information
+- Author Contributions
+- Funding Information
+- Competing Interests
+- Ethics Statements
+
+Focus exclusively on the research content and findings.
+
+**CITATION REQUIREMENTS:**
+- Cite research references at the end of paragraphs when appropriate using [number] format
+- Include a comprehensive reference list at the end of the report
+- Use proper scientific citation format (Author, Year, Title, Journal, DOI/PMID)
+- Reference sources from the provided research data
+- Ensure all claims are properly supported with citations
+- Include DOI or PMID when available for easy access to original sources
+
 **Respond only the final report content, and no additional text before or after.**`;
 
 export const rewritingPrompt = `You are tasked with re-writing the following text to markdown. Ensure you do not change the meaning or story behind the text. 

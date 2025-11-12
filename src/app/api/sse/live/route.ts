@@ -36,8 +36,6 @@ export async function GET(req: NextRequest) {
     getValueFromSearchParams("enableCitationImage") === "false";
   const enableReferences =
     getValueFromSearchParams("enableReferences") === "false";
-  const enableFileFormatResource =
-    getValueFromSearchParams("enableFileFormatResource") === "true";
 
   const encoder = new TextEncoder();
   const readableStream = new ReadableStream({
@@ -87,12 +85,7 @@ export async function GET(req: NextRequest) {
       });
 
       try {
-        await deepResearch.start(
-          query,
-          enableCitationImage,
-          enableReferences,
-          enableFileFormatResource
-        );
+        await deepResearch.start(query, enableCitationImage, enableReferences);
       } catch (err) {
         throw new Error(err instanceof Error ? err.message : "Unknown error");
       }

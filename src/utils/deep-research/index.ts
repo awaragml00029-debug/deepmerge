@@ -1,4 +1,4 @@
-import { streamText, generateText, type UserContent } from "ai";
+import { streamText, generateText } from "ai";
 import { type GoogleGenerativeAIProviderMetadata } from "@ai-sdk/google";
 import { createAIProvider } from "./provider";
 import { createSearchProvider } from "./search";
@@ -10,11 +10,13 @@ import {
   processSearchResultPrompt,
   writeFinalReportPrompt,
   getSERPQuerySchema,
+  isGeneResearchQuery,
 } from "./prompts";
 import { outputGuidelinesPrompt } from "@/constants/prompts";
 import { isNetworkingModel } from "@/utils/model";
 import { ThinkTagStreamProcessor, removeJsonMarkdown } from "@/utils/text";
 import { pick, unique, flat, isFunction } from "radash";
+import { createGeneResearchEngine } from "@/utils/gene-research";
 
 export interface DeepResearchOptions {
   AIProvider: {
@@ -211,9 +213,7 @@ class DeepResearch {
           if (
             provider === "model" &&
             ["openai", "azure", "openaicompatible"].includes(taskModel) &&
-            (taskModel.startsWith("gpt-4o") ||
-              taskModel.startsWith("gpt-4.1") ||
-              taskModel.startsWith("gpt-5"))
+            taskModel.startsWith("gpt-4o")
           ) {
             const { openai } = await import("@ai-sdk/openai");
             return {
@@ -387,8 +387,7 @@ class DeepResearch {
     reportPlan: string,
     tasks: DeepResearchSearchResult[],
     enableCitationImage = true,
-    enableReferences = true,
-    enableFileFormatResource = true
+    enableReferences = true
   ): Promise<FinalReportResult> {
     this.onMessage("progress", { step: "final-report", status: "start" });
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
@@ -401,75 +400,21 @@ class DeepResearch {
       flat(tasks.map((item) => item.images || [])),
       (item) => item.url
     );
-
-    const sourceList = enableReferences
-      ? sources.map((item) => pick(item, ["title", "url"]))
-      : [];
-    const imageList = enableCitationImage ? images : [];
-    const file = new File(
-      [
-        [
-          `<LEARNINGS>\n${learnings
-            .map((detail) => `<learning>\n${detail}\n</learning>`)
-            .join("\n")}\n</LEARNINGS>`,
-          `<SOURCES>\n${sourceList
-            .map(
-              (item, idx) =>
-                `<source index="${idx + 1}" url="${item.url}">\n${
-                  item.title
-                }\n</source>`
-            )
-            .join("\n")}\n</SOURCES>`,
-          `<IMAGES>\n${imageList
-            .map(
-              (source, idx) =>
-                `${idx + 1}. ![${source.description}](${source.url})`
-            )
-            .join("\n")}\n</IMAGES>`,
-        ].join("\n\n"),
-      ],
-      "resources.md",
-      { type: "text/markdown" }
-    );
-    const fileData = await file.arrayBuffer();
-
-    const messageContent: UserContent = [
-      {
-        type: "text",
-        text: [
-          writeFinalReportPrompt(
-            reportPlan,
-            learnings,
-            sourceList,
-            imageList,
-            "",
-            imageList.length > 0 && enableCitationImage,
-            sourceList.length > 0 && enableReferences,
-            enableFileFormatResource
-          ),
-          this.getResponseLanguagePrompt(),
-        ].join("\n\n"),
-      },
-    ];
-    if (enableFileFormatResource) {
-      messageContent.push({
-        type: "file",
-        mimeType: "text/markdown",
-        filename: "resources.md",
-        data: fileData,
-      });
-    }
-
     const result = streamText({
       model: await this.getThinkingModel(),
       system: [getSystemPrompt(), outputGuidelinesPrompt].join("\n\n"),
-      messages: [
-        {
-          role: "user",
-          content: messageContent,
-        },
-      ],
-      temperature: 0.5,
+      prompt: [
+        writeFinalReportPrompt(
+          reportPlan,
+          learnings,
+          sources.map((item) => pick(item, ["title", "url"])),
+          images,
+          "",
+          images.length > 0 && enableCitationImage,
+          sources.length > 0 && enableReferences
+        ),
+        this.getResponseLanguagePrompt(),
+      ].join("\n\n"),
     });
     let content = "";
     this.onMessage("message", { type: "text", text: "<final-report>\n" });
@@ -491,9 +436,29 @@ class DeepResearch {
         sources.push(part.source);
       } else if (part.type === "finish") {
         if (sources.length > 0) {
-          const sourceContent =
-            "\n\n---\n\n" +
-            sources
+          // Check if we have formatted citations (from gene research)
+          const hasFormattedCitations = sources.some(source => source.formattedCitation);
+          
+          let sourceContent = "\n\n---\n\n";
+          
+          if (hasFormattedCitations) {
+            // Use formatted citations for gene research reports
+            sourceContent += "## References\n\n";
+            sourceContent += sources
+              .map((source, idx) => {
+                // Use formatted citation if available, otherwise fall back to default format
+                if (source.formattedCitation) {
+                  return `[${idx + 1}]: ${source.formattedCitation}`;
+                } else {
+                  return `[${idx + 1}]: ${source.url}${
+                    source.title ? ` "${source.title.replaceAll('"', " ")}"` : ""
+                  }`;
+                }
+              })
+              .join("\n");
+          } else {
+            // Use default format for regular reports
+            sourceContent += sources
               .map(
                 (item, idx) =>
                   `[${idx + 1}]: ${item.url}${
@@ -501,6 +466,8 @@ class DeepResearch {
                   }`
               )
               .join("\n");
+          }
+          
           content += sourceContent;
         }
       }
@@ -532,10 +499,14 @@ class DeepResearch {
   async start(
     query: string,
     enableCitationImage = true,
-    enableReferences = true,
-    enableFileFormatResource = false
+    enableReferences = true
   ) {
     try {
+      // Check if this is a gene research query
+      if (isGeneResearchQuery(query)) {
+        return await this.conductGeneResearch(query);
+      }
+
       const reportPlan = await this.writeReportPlan(query);
       const tasks = await this.generateSERPQuery(reportPlan);
       const results = await this.runSearchTask(tasks, enableReferences);
@@ -543,8 +514,7 @@ class DeepResearch {
         reportPlan,
         results,
         enableCitationImage,
-        enableReferences,
-        enableFileFormatResource
+        enableReferences
       );
       return finalReport;
     } catch (err) {
@@ -552,6 +522,138 @@ class DeepResearch {
       this.onMessage("error", { message: errorMessage });
       throw new Error(errorMessage);
     }
+  }
+
+  // Gene research specific method
+  async conductGeneResearch(
+    query: string
+  ) {
+    try {
+      this.onMessage("progress", { step: "gene-research", status: "start" });
+      
+      // Extract gene information from query
+      const geneInfo = this.extractGeneInfo(query);
+      
+      // Create gene research engine
+      const geneEngine = createGeneResearchEngine({
+        geneSymbol: geneInfo.geneSymbol,
+        organism: geneInfo.organism,
+        researchFocus: geneInfo.researchFocus,
+        specificAspects: geneInfo.specificAspects,
+        diseaseContext: geneInfo.diseaseContext,
+        experimentalApproach: geneInfo.experimentalApproach,
+        targetAudience: 'researchers',
+        reportType: 'comprehensive',
+        enableAPIIntegration: true,
+        enableQualityControl: true,
+        enableVisualization: true,
+        maxSearchResults: 20,
+        searchProviders: ['pubmed', 'uniprot', 'ncbi_gene', 'geo', 'pdb', 'kegg', 'string', 'omim', 'ensembl', 'reactome']
+      });
+
+      this.onMessage("progress", { step: "gene-research", status: "processing" });
+      
+      // Conduct gene research
+      const result = await geneEngine.conductResearch();
+
+      this.onMessage("progress", { step: "gene-research", status: "end" });
+
+      // Convert gene research result to standard format
+      const sources = result.workflow.literatureReview.map(ref => {
+        // Format citation manually
+        const authors = ref.authors && ref.authors.length > 0
+          ? (ref.authors.length === 1 ? ref.authors[0] : `${ref.authors[0]}, et al.`)
+          : 'Anonymous';
+        const formattedCitation = `${authors} ${ref.year}. ${ref.title}. ${ref.journal}${ref.pmid ? ` PMID:${ref.pmid}` : ''}`;
+
+        return {
+          title: ref.title,
+          url: `https://pubmed.ncbi.nlm.nih.gov/${ref.pmid}/`,
+          content: ref.abstract,
+          database: 'pubmed',
+          formattedCitation
+        };
+      });
+
+      const images = result.visualizations.map(viz => ({
+        url: `data:image/svg+xml;base64,${Buffer.from(viz.content).toString('base64')}`,
+        description: viz.title
+      }));
+
+      const finalReport = result.report.title + '\n\n' + result.report.sections.map((s: any) => s.content).join('\n\n');
+
+      return {
+        title: result.report.title,
+        finalReport,
+        learnings: result.workflow.literatureReview.map(ref => ref.abstract),
+        sources,
+        images,
+        geneResearch: {
+          qualityMetrics: result.qualityMetrics,
+          visualizations: result.visualizations,
+          workflow: result.workflow
+        }
+      };
+    } catch (err) {
+      this.onMessage("error", {
+        message: err instanceof Error ? err.message : "Gene research error",
+      });
+      throw err;
+    }
+  }
+
+  // Extract gene information from query
+  extractGeneInfo(query: string): {
+    geneSymbol: string;
+    organism: string;
+    researchFocus?: string[];
+    specificAspects?: string[];
+    diseaseContext?: string;
+    experimentalApproach?: string;
+  } {
+    // Simple extraction - in production, use more sophisticated NLP
+    const geneMatch = query.match(/([A-Z][A-Za-z0-9]+)/);
+    const organismMatch = query.match(/(Escherichia coli|Corynebacterium glutamicum|Bacillus subtilis|Homo sapiens|Mus musculus|Rattus norvegicus|Drosophila melanogaster|Caenorhabditis elegans|Saccharomyces cerevisiae|Arabidopsis thaliana|Danio rerio|Xenopus laevis)/i);
+    
+    const geneSymbol = geneMatch ? geneMatch[1] : 'Unknown';
+    const organism = organismMatch ? organismMatch[1] : 'Escherichia coli';
+    
+    // Extract research focuses (can be multiple)
+    const researchFocus: string[] = ['general']; // Always include general
+    if (query.toLowerCase().includes('disease') || query.toLowerCase().includes('clinical')) {
+      researchFocus.push('disease');
+    }
+    if (query.toLowerCase().includes('structure') || query.toLowerCase().includes('protein')) {
+      researchFocus.push('structure');
+    }
+    if (query.toLowerCase().includes('expression') || query.toLowerCase().includes('regulation')) {
+      researchFocus.push('expression');
+    }
+    if (query.toLowerCase().includes('interaction') || query.toLowerCase().includes('binding')) {
+      researchFocus.push('interaction');
+    }
+    if (query.toLowerCase().includes('evolution') || query.toLowerCase().includes('phylogeny')) {
+      researchFocus.push('evolution');
+    }
+    if (query.toLowerCase().includes('therapeutic') || query.toLowerCase().includes('drug')) {
+      researchFocus.push('therapeutic');
+    }
+    
+    // Extract specific aspects
+    const specificAspects: string[] = [];
+    if (query.toLowerCase().includes('mutation')) specificAspects.push('mutation');
+    if (query.toLowerCase().includes('interaction')) specificAspects.push('interaction');
+    if (query.toLowerCase().includes('pathway')) specificAspects.push('pathway');
+    if (query.toLowerCase().includes('evolution')) specificAspects.push('evolution');
+    
+    return {
+      geneSymbol,
+      organism,
+      researchFocus,
+      specificAspects: specificAspects.length > 0 ? specificAspects : undefined,
+      diseaseContext: query.toLowerCase().includes('disease') ? 'general' : undefined,
+      experimentalApproach: query.toLowerCase().includes('experimental') ? 'experimental' : undefined
+    };
   }
 }
 

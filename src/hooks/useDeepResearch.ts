@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  streamText,
-  smoothStream,
-  type JSONValue,
-  type Tool,
-  type UserContent,
-} from "ai";
+import { streamText, smoothStream, type JSONValue, type Tool } from "ai";
 import { parsePartialJson } from "@ai-sdk/ui-utils";
 import { openai } from "@ai-sdk/openai";
 import { type GoogleGenerativeAIProviderMetadata } from "@ai-sdk/google";
@@ -35,7 +29,6 @@ import { isNetworkingModel } from "@/utils/model";
 import { ThinkTagStreamProcessor, removeJsonMarkdown } from "@/utils/text";
 import { parseError } from "@/utils/error";
 import { pick, flat, unique } from "radash";
-import { generateGeneEnhancedQueries, validateGeneReferences } from "@/utils/gene-research-integration";
 
 type ProviderOptions = Record<string, Record<string, JSONValue>>;
 type Tools = Record<string, Tool>;
@@ -85,9 +78,7 @@ function useDeepResearch() {
         // Enable OpenAI's built-in search tool
         if (
           ["openai", "azure", "openaicompatible"].includes(provider) &&
-          (model.startsWith("gpt-4o") ||
-            model.startsWith("gpt-4.1") ||
-            model.startsWith("gpt-5"))
+          model.startsWith("gpt-4o")
         ) {
           return {
             web_search_preview: openai.tools.webSearchPreview({
@@ -140,16 +131,15 @@ function useDeepResearch() {
 
   async function askQuestions() {
     const { question } = useTaskStore.getState();
-    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchSettings = await generateSearchSettings(thinkingModel);
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(researchMode),
+      system: getSystemPrompt(),
       prompt: [
-        generateQuestionsPrompt(question, researchMode),
+        generateQuestionsPrompt(question),
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -179,15 +169,14 @@ function useDeepResearch() {
 
   async function writeReportPlan() {
     const { query } = useTaskStore.getState();
-    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchSettings = await generateSearchSettings(thinkingModel);
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(researchMode),
-      prompt: [writeReportPlanPrompt(query, researchMode), getResponseLanguagePrompt()].join(
+      system: getSystemPrompt(),
+      prompt: [writeReportPlanPrompt(query), getResponseLanguagePrompt()].join(
         "\n\n"
       ),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -230,11 +219,10 @@ function useDeepResearch() {
     }
 
     const { networkingModel } = getModel();
-    const { researchMode } = useSettingStore.getState();
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchResult = streamText({
       model: await createModelProvider(networkingModel),
-      system: getSystemPrompt(researchMode),
+      system: getSystemPrompt(),
       prompt: [
         processSearchKnowledgeResultPrompt(query, researchGoal, knowledges),
         getResponseLanguagePrompt(),
@@ -332,17 +320,15 @@ function useDeepResearch() {
               }
               const enableReferences =
                 sources.length > 0 && references === "enable";
-              const { researchMode } = useSettingStore.getState();
               searchResult = streamText({
                 model: await createModelProvider(networkingModel),
-                system: getSystemPrompt(researchMode),
+                system: getSystemPrompt(),
                 prompt: [
                   processSearchResultPrompt(
                     item.query,
                     item.researchGoal,
                     sources,
-                    enableReferences,
-                    researchMode
+                    enableReferences
                   ),
                   getResponseLanguagePrompt(),
                 ].join("\n\n"),
@@ -350,13 +336,12 @@ function useDeepResearch() {
                 onError: handleError,
               });
             } else {
-              const { researchMode } = useSettingStore.getState();
               const searchSettings = await generateSearchSettings(
                 networkingModel
               );
               searchResult = streamText({
                 ...searchSettings,
-                system: getSystemPrompt(researchMode),
+                system: getSystemPrompt(),
                 prompt: [
                   processResultPrompt(item.query, item.researchGoal),
                   getResponseLanguagePrompt(),
@@ -366,10 +351,9 @@ function useDeepResearch() {
               });
             }
           } else {
-            const { researchMode } = useSettingStore.getState();
             searchResult = streamText({
               model: await createModelProvider(networkingModel),
-              system: getSystemPrompt(researchMode),
+              system: getSystemPrompt(),
               prompt: [
                 processResultPrompt(item.query, item.researchGoal),
                 getResponseLanguagePrompt(),
@@ -462,14 +446,13 @@ function useDeepResearch() {
 
   async function reviewSearchResult() {
     const { reportPlan, tasks, suggestion } = useTaskStore.getState();
-    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.research"));
     const learnings = tasks.map((item) => item.learning);
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const result = streamText({
       model: await createModelProvider(thinkingModel),
-      system: getSystemPrompt(researchMode),
+      system: getSystemPrompt(),
       prompt: [
         reviewSerpQueriesPrompt(reportPlan, learnings, suggestion),
         getResponseLanguagePrompt(),
@@ -518,8 +501,7 @@ function useDeepResearch() {
   }
 
   async function writeFinalReport() {
-    const { citationImage, references, useFileFormatResource, researchMode } =
-      useSettingStore.getState();
+    const { citationImage, references } = useSettingStore.getState();
     const {
       reportPlan,
       tasks,
@@ -536,96 +518,34 @@ function useDeepResearch() {
     setTitle("");
     setSources([]);
     const learnings = tasks.map((item) => item.learning);
-    let sources: Source[] = unique(
+    const sources: Source[] = unique(
       flat(tasks.map((item) => item.sources || [])),
       (item) => item.url
     );
-
-    // Validate and enhance gene references if in gene research mode
-    if (researchMode === "gene" && sources.length > 0) {
-      try {
-        sources = await validateGeneReferences(sources);
-      } catch (error) {
-        console.error("Error validating gene references:", error);
-      }
-    }
-
     const images: ImageSource[] = unique(
       flat(tasks.map((item) => item.images || [])),
       (item) => item.url
     );
     const enableCitationImage = images.length > 0 && citationImage === "enable";
     const enableReferences = sources.length > 0 && references === "enable";
-    const enableFileFormatResource = useFileFormatResource === "enable";
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
-
-    const sourceList = enableReferences
-      ? sources.map((item) => pick(item, ["title", "url"]))
-      : [];
-    const imageList = enableCitationImage ? images : [];
-    const file = new File(
-      [
-        [
-          `<LEARNINGS>\n${learnings
-            .map((detail) => `<learning>\n${detail}\n</learning>`)
-            .join("\n")}\n</LEARNINGS>`,
-          `<SOURCES>\n${sourceList
-            .map(
-              (item, idx) =>
-                `<source index="${idx + 1}" url="${item.url}">\n${
-                  item.title
-                }\n</source>`
-            )
-            .join("\n")}\n</SOURCES>`,
-          `<IMAGES>\n${imageList
-            .map(
-              (source, idx) =>
-                `${idx + 1}. ![${source.description}](${source.url})`
-            )
-            .join("\n")}\n</IMAGES>`,
-        ].join("\n\n"),
-      ],
-      "resources.md",
-      { type: "text/markdown" }
-    );
-    const fileData = await file.arrayBuffer();
-    const messageContent: UserContent = [
-      {
-        type: "text",
-        text: [
-          writeFinalReportPrompt(
-            reportPlan,
-            learnings,
-            sourceList,
-            imageList,
-            requirement,
-            enableCitationImage,
-            enableReferences,
-            enableFileFormatResource,
-            researchMode
-          ),
-          getResponseLanguagePrompt(),
-        ].join("\n\n"),
-      },
-    ];
-    if (enableFileFormatResource) {
-      messageContent.push({
-        type: "file",
-        mimeType: "text/markdown",
-        filename: "resources.md",
-        data: fileData,
-      });
-    }
-
     const result = streamText({
       model: await createModelProvider(thinkingModel),
-      system: [getSystemPrompt(researchMode), outputGuidelinesPrompt].join("\n\n"),
-      messages: [
-        {
-          role: "user",
-          content: messageContent,
-        },
-      ],
+      system: [getSystemPrompt(), outputGuidelinesPrompt].join("\n\n"),
+      prompt: [
+        writeFinalReportPrompt(
+          reportPlan,
+          learnings,
+          enableReferences
+            ? sources.map((item) => pick(item, ["title", "url"]))
+            : [],
+          enableCitationImage ? images : [],
+          requirement,
+          enableCitationImage,
+          enableReferences
+        ),
+        getResponseLanguagePrompt(),
+      ].join("\n\n"),
       temperature: 0.5,
       experimental_transform: smoothTextStream(smoothTextStreamType),
       onError: handleError,
@@ -650,17 +570,34 @@ function useDeepResearch() {
     }
     if (reasoning) console.log(reasoning);
     if (sources.length > 0) {
-      content +=
-        "\n\n" +
-        sources
-          .map(
-            (item, idx) =>
-              `[${idx + 1}]: ${item.url}${
-                item.title ? ` "${item.title.replaceAll('"', " ")}"` : ""
-              }`
-          )
-          .join("\n");
+      // Sort sources by URL to ensure consistent ordering and better deduplication
+      const sortedSources = [...sources].sort((a, b) => a.url.localeCompare(b.url));
+      
+      // Apply enhanced citation formatting following scientific standards
+      content += "\n\n## References\n\n";
+      
+      // Add properly formatted references with deduplication checks
+      const urlSet = new Set<string>(); // To catch any remaining duplicates
+      
+      for (let idx = 0; idx < sortedSources.length; idx++) {
+        const item = sortedSources[idx];
+        // Normalize URL for better deduplication
+        const normalizedUrl = normalizeUrl(item.url);
+        
+        if (!urlSet.has(normalizedUrl)) {
+          urlSet.add(normalizedUrl);
+          
+          // Improved citation format following scientific standards
+          const formattedTitle = item.title ? item.title.replaceAll('"', "'") : "Untitled Source";
+
+          // Format reference with proper citation style
+          content += `[${urlSet.size}]: ${item.url} ${formattedTitle ? `"${formattedTitle}"` : ""}\n`;
+        }
+      }
+      
       updateFinalReport(content);
+      
+      console.log(`Reference processing complete: ${urlSet.size} unique references added (${sources.length - urlSet.size} duplicates removed)`);
     }
     if (content.length > 0) {
       const title = (content || "")
@@ -680,16 +617,15 @@ function useDeepResearch() {
 
   async function deepResearch() {
     const { reportPlan } = useTaskStore.getState();
-    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     try {
       const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
       const result = streamText({
         model: await createModelProvider(thinkingModel),
-        system: getSystemPrompt(researchMode),
+        system: getSystemPrompt(),
         prompt: [
-          generateSerpQueriesPrompt(reportPlan, researchMode),
+          generateSerpQueriesPrompt(reportPlan),
           getResponseLanguagePrompt(),
         ].join("\n\n"),
         experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -732,38 +668,41 @@ function useDeepResearch() {
         );
       }
       if (reasoning) console.log(reasoning);
-
-      // Add gene-specific database queries if in gene research mode
-      if (researchMode === "gene") {
-        try {
-          const geneQueries = await generateGeneEnhancedQueries(
-            useTaskStore.getState().query || "",
-            reportPlan
-          );
-
-          if (geneQueries.length > 0) {
-            // Convert gene queries to SearchTask format
-            const geneSearchTasks: SearchTask[] = geneQueries.map(gq => ({
-              state: "unprocessed" as const,
-              learning: "",
-              query: gq.query,
-              researchGoal: `Database query for ${gq.database || 'biological databases'}`,
-              sources: [],
-              images: []
-            }));
-
-            // Append gene queries to existing queries
-            queries = [...queries, ...geneSearchTasks];
-            taskStore.update(queries);
-          }
-        } catch (error) {
-          console.error("Error generating gene-enhanced queries:", error);
-        }
-      }
-
       await runSearchTask(queries);
     } catch (err) {
       console.error(err);
+    }
+  }
+
+  /**
+   * Normalize URL for better deduplication
+   * @param url The URL to normalize
+   * @returns Normalized URL string
+   */
+  function normalizeUrl(url: string): string {
+    try {
+      // Create URL object for consistent parsing
+      const urlObj = new URL(url);
+      
+      // Remove query parameters that don't affect content
+      const cleanParams = new URLSearchParams();
+      for (const [key, value] of urlObj.searchParams) {
+        // Keep only important parameters (customize based on your needs)
+        if (!['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', '_r', 'ref', 'referrer'].includes(key.toLowerCase())) {
+          cleanParams.append(key, value);
+        }
+      }
+      
+      // Reconstruct URL without fragment and with cleaned parameters
+      const paramsString = cleanParams.toString();
+      return `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}${paramsString ? `?${paramsString}` : ''}`;
+    } catch {
+      // If URL parsing fails, return the original URL after basic cleanup
+      return url.toLowerCase().trim()
+        .replace(/\/$/, '')
+        .replace(/\?utm_[^&]+/g, '')
+        .replace(/&utm_[^&]+/g, '')
+        .replace(/\?$/, '');
     }
   }
 
