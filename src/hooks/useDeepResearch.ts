@@ -25,11 +25,17 @@ import {
   writeFinalReportPrompt,
   getSERPQuerySchema,
 } from "@/utils/deep-research/prompts";
+import {
+  geneResearchSystemInstruction,
+  geneResearchQuestionPrompt,
+  geneReportPlanPrompt,
+  geneSerpQueriesPrompt,
+  geneFinalReportPrompt,
+} from "@/constants/gene-research-prompts";
 import { isNetworkingModel } from "@/utils/model";
 import { ThinkTagStreamProcessor, removeJsonMarkdown } from "@/utils/text";
 import { parseError } from "@/utils/error";
 import { pick, flat, unique } from "radash";
-import { createGeneResearchEngine } from "@/utils/gene-research";
 
 type ProviderOptions = Record<string, Record<string, JSONValue>>;
 type Tools = Record<string, Tool>;
@@ -57,65 +63,6 @@ function handleError(error: unknown) {
  */
 function detectGeneResearch(query: string): boolean {
   return query.trim().toLowerCase().startsWith("gene research:");
-}
-
-/**
- * Extract gene information from formatted query
- */
-function extractGeneInfo(query: string): {
-  geneSymbol: string;
-  organism: string;
-  researchFocus?: string[];
-  specificAspects?: string[];
-  diseaseContext?: string;
-  experimentalApproach?: string;
-  userPrompt?: string;
-} {
-  // Extract main line and user prompt
-  const parts = query.split('\n\nResearch Question:\n');
-  const mainLine = parts[0];
-  const userPrompt = parts[1] || undefined;
-
-  // Parse main line: "Gene research: BRCA1 in Homo sapiens - Focus: disease - Aspects: protein - Disease: cancer - Method: CRISPR"
-  const geneMatch = mainLine.match(/Gene research:\s*([A-Za-z0-9_-]+)\s+in\s+([^-\n]+)/i);
-
-  if (!geneMatch) {
-    return {
-      geneSymbol: 'Unknown',
-      organism: 'Escherichia coli',
-      userPrompt
-    };
-  }
-
-  const geneSymbol = geneMatch[1].trim();
-  const organism = geneMatch[2].trim();
-
-  // Extract optional fields
-  const focusMatch = mainLine.match(/Focus:\s*([^-\n]+)/i);
-  const aspectsMatch = mainLine.match(/Aspects:\s*([^-\n]+)/i);
-  const diseaseMatch = mainLine.match(/Disease:\s*([^-\n]+)/i);
-  const methodMatch = mainLine.match(/Method:\s*([^-\n]+)/i);
-
-  const researchFocus = focusMatch
-    ? focusMatch[1].split(',').map(s => s.trim())
-    : undefined;
-
-  const specificAspects = aspectsMatch
-    ? aspectsMatch[1].split(',').map(s => s.trim())
-    : undefined;
-
-  const diseaseContext = diseaseMatch ? diseaseMatch[1].trim() : undefined;
-  const experimentalApproach = methodMatch ? methodMatch[1].trim() : undefined;
-
-  return {
-    geneSymbol,
-    organism,
-    researchFocus,
-    specificAspects,
-    diseaseContext,
-    experimentalApproach,
-    userPrompt
-  };
 }
 
 function useDeepResearch() {
@@ -203,11 +150,21 @@ function useDeepResearch() {
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchSettings = await generateSearchSettings(thinkingModel);
+
+    // Use gene research prompts if this is a gene research query
+    const isGeneResearch = detectGeneResearch(question);
+    const systemPrompt = isGeneResearch
+      ? geneResearchSystemInstruction.replace("{now}", new Date().toISOString())
+      : getSystemPrompt();
+    const questionsPrompt = isGeneResearch
+      ? geneResearchQuestionPrompt.replace("{query}", question)
+      : generateQuestionsPrompt(question);
+
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(),
+      system: systemPrompt,
       prompt: [
-        generateQuestionsPrompt(question),
+        questionsPrompt,
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -241,12 +198,20 @@ function useDeepResearch() {
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchSettings = await generateSearchSettings(thinkingModel);
+
+    // Use gene research prompts if this is a gene research query
+    const isGeneResearch = detectGeneResearch(query);
+    const systemPrompt = isGeneResearch
+      ? geneResearchSystemInstruction.replace("{now}", new Date().toISOString())
+      : getSystemPrompt();
+    const reportPlanPrompt = isGeneResearch
+      ? geneReportPlanPrompt.replace("{query}", query)
+      : writeReportPlanPrompt(query);
+
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(),
-      prompt: [writeReportPlanPrompt(query), getResponseLanguagePrompt()].join(
-        "\n\n"
-      ),
+      system: systemPrompt,
+      prompt: [reportPlanPrompt, getResponseLanguagePrompt()].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
       onError: handleError,
     });
@@ -571,6 +536,7 @@ function useDeepResearch() {
   async function writeFinalReport() {
     const { citationImage, references } = useSettingStore.getState();
     const {
+      question,
       reportPlan,
       tasks,
       setId,
@@ -596,12 +562,19 @@ function useDeepResearch() {
     );
     const enableCitationImage = images.length > 0 && citationImage === "enable";
     const enableReferences = sources.length > 0 && references === "enable";
-    const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
-    const result = streamText({
-      model: await createModelProvider(thinkingModel),
-      system: [getSystemPrompt(), outputGuidelinesPrompt].join("\n\n"),
-      prompt: [
-        writeFinalReportPrompt(
+
+    // Use gene research prompts if this is a gene research query
+    const isGeneResearch = detectGeneResearch(question);
+    const systemPrompt = isGeneResearch
+      ? [geneResearchSystemInstruction.replace("{now}", new Date().toISOString()), outputGuidelinesPrompt].join("\n\n")
+      : [getSystemPrompt(), outputGuidelinesPrompt].join("\n\n");
+    const finalReportPrompt = isGeneResearch
+      ? geneFinalReportPrompt
+          .replace("{plan}", reportPlan)
+          .replace("{learnings}", learnings.map((detail) => `<learning>\n${detail}\n</learning>`).join("\n"))
+          .replace("{sources}", sources.map((item, idx) => `<source index="${idx + 1}" url="${item.url}">\n${item.title}\n</source>`).join("\n"))
+          .replace("{requirement}", requirement || "")
+      : writeFinalReportPrompt(
           reportPlan,
           learnings,
           enableReferences
@@ -611,7 +584,14 @@ function useDeepResearch() {
           requirement,
           enableCitationImage,
           enableReferences
-        ),
+        );
+
+    const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
+    const result = streamText({
+      model: await createModelProvider(thinkingModel),
+      system: systemPrompt,
+      prompt: [
+        finalReportPrompt,
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       temperature: 0.5,
@@ -653,169 +633,26 @@ function useDeepResearch() {
     }
   }
 
-  /**
-   * Conduct specialized gene research using GeneResearchEngine
-   */
-  async function conductGeneResearch(geneInfo: {
-    geneSymbol: string;
-    organism: string;
-    researchFocus?: string[];
-    specificAspects?: string[];
-    diseaseContext?: string;
-    experimentalApproach?: string;
-    userPrompt?: string;
-  }) {
-    const {
-      setId,
-      setTitle,
-      setSources,
-      updateFinalReport,
-    } = useTaskStore.getState();
-    const { save } = useHistoryStore.getState();
-
-    try {
-      setStatus(t("research.common.research"));
-      updateFinalReport("");
-      setTitle("");
-      setSources([]);
-
-      // Create gene research engine with specialized settings
-      const geneEngine = createGeneResearchEngine({
-        geneSymbol: geneInfo.geneSymbol,
-        organism: geneInfo.organism,
-        researchFocus: geneInfo.researchFocus || ['general'],
-        specificAspects: geneInfo.specificAspects || [],
-        diseaseContext: geneInfo.diseaseContext,
-        experimentalApproach: geneInfo.experimentalApproach,
-        targetAudience: 'researchers',
-        reportType: 'comprehensive',
-        enableAPIIntegration: true,
-        enableQualityControl: true,
-        enableVisualization: true,
-        maxSearchResults: 20,
-        searchProviders: [
-          'pubmed',
-          'uniprot',
-          'ncbi_gene',
-          'geo',
-          'pdb',
-          'kegg',
-          'string',
-          'omim',
-          'ensembl',
-          'reactome'
-        ]
-      });
-
-      setStatus(t("research.common.writing"));
-
-      // Conduct comprehensive gene research
-      const result = await geneEngine.conductResearch();
-
-      // Convert gene research result to standard format for display
-      const sources = result.workflow.literatureReview.map(ref => {
-        const authors = ref.authors && ref.authors.length > 0
-          ? (ref.authors.length === 1 ? ref.authors[0] : `${ref.authors[0]}, et al.`)
-          : 'Anonymous';
-        const formattedCitation = `${authors} ${ref.year}. ${ref.title}. ${ref.journal}${ref.pmid ? ` PMID:${ref.pmid}` : ''}`;
-
-        return {
-          title: ref.title,
-          url: ref.pmid ? `https://pubmed.ncbi.nlm.nih.gov/${ref.pmid}/` : '#',
-          content: ref.abstract,
-          database: 'pubmed',
-          formattedCitation
-        };
-      });
-
-      // Format the final report
-      let finalReport = `# ${result.report.title}\n\n`;
-
-      // Add executive summary if available
-      if (result.report.executiveSummary) {
-        finalReport += `## Executive Summary\n\n${result.report.executiveSummary}\n\n`;
-      }
-
-      // Add all sections
-      result.report.sections.forEach((section: { title: string; content: string }) => {
-        finalReport += `## ${section.title}\n\n${section.content}\n\n`;
-      });
-
-      // Add quality metrics as a note
-      if (result.qualityMetrics) {
-        const metrics = result.qualityMetrics as any; // Type mismatch between interfaces
-        finalReport += `---\n\n`;
-        finalReport += `**Research Quality Metrics:**\n`;
-
-        // Check if it's the detailed QualityControlResult format
-        if (metrics.overallScore !== undefined) {
-          finalReport += `- Overall Score: ${metrics.overallScore}/100\n`;
-          if (metrics.categoryScores) {
-            finalReport += `- Literature Coverage: ${metrics.categoryScores.literatureCoverage}/100\n`;
-            finalReport += `- Data Completeness: ${metrics.categoryScores.dataCompleteness}/100\n`;
-            finalReport += `- Experimental Evidence: ${metrics.categoryScores.experimentalEvidence}/100\n`;
-            finalReport += `- Scientific Rigor: ${metrics.categoryScores.scientificRigor}/100\n`;
-          }
-          if (metrics.recommendations && metrics.recommendations.length > 0) {
-            finalReport += `\n**Recommendations for Further Research:**\n`;
-            metrics.recommendations.forEach((rec: string) => {
-              finalReport += `- ${rec}\n`;
-            });
-          }
-        } else {
-          // Simple GeneResearchQualityMetrics format
-          finalReport += `- Overall Quality: ${Math.round((metrics.overallQuality || 0) * 100)}/100\n`;
-          finalReport += `- Data Completeness: ${Math.round((metrics.dataCompleteness || 0) * 100)}/100\n`;
-          finalReport += `- Literature Coverage: ${Math.round((metrics.literatureCoverage || 0) * 100)}/100\n`;
-          finalReport += `- Experimental Evidence: ${Math.round((metrics.experimentalEvidence || 0) * 100)}/100\n`;
-        }
-      }
-
-      // Update the UI with the results
-      updateFinalReport(finalReport);
-      setTitle(result.report.title);
-      setSources(sources);
-
-      const id = save(taskStore.backup());
-      setId(id);
-
-      toast.success("Gene research completed successfully!");
-
-      return finalReport;
-    } catch (err) {
-      console.error('Gene research error:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Gene research failed';
-      toast.error(`Gene research failed: ${errorMessage}`);
-      throw err;
-    }
-  }
-
   async function deepResearch() {
     const { question, reportPlan } = useTaskStore.getState();
-
-    // Check if this is a gene research query
-    if (detectGeneResearch(question)) {
-      try {
-        const geneInfo = extractGeneInfo(question);
-        await conductGeneResearch(geneInfo);
-        return;
-      } catch (err) {
-        console.error('Gene research failed, falling back to general research:', err);
-        toast.warning('Gene research failed, using general research mode');
-        // Fall through to general research
-      }
-    }
-
-    // General research workflow
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     try {
+      // Use gene research prompts if this is a gene research query
+      const isGeneResearch = detectGeneResearch(question);
+      const systemPrompt = isGeneResearch
+        ? geneResearchSystemInstruction.replace("{now}", new Date().toISOString())
+        : getSystemPrompt();
+      const serpQueriesPrompt = isGeneResearch
+        ? geneSerpQueriesPrompt.replace("{plan}", reportPlan)
+        : generateSerpQueriesPrompt(reportPlan);
+
       const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
       const result = streamText({
         model: await createModelProvider(thinkingModel),
-        system: getSystemPrompt(),
+        system: systemPrompt,
         prompt: [
-          generateSerpQueriesPrompt(reportPlan),
+          serpQueriesPrompt,
           getResponseLanguagePrompt(),
         ].join("\n\n"),
         experimental_transform: smoothTextStream(smoothTextStreamType),
