@@ -35,6 +35,7 @@ import { isNetworkingModel } from "@/utils/model";
 import { ThinkTagStreamProcessor, removeJsonMarkdown } from "@/utils/text";
 import { parseError } from "@/utils/error";
 import { pick, flat, unique } from "radash";
+import { generateGeneEnhancedQueries, validateGeneReferences } from "@/utils/gene-research-integration";
 
 type ProviderOptions = Record<string, Record<string, JSONValue>>;
 type Tools = Record<string, Tool>;
@@ -535,10 +536,20 @@ function useDeepResearch() {
     setTitle("");
     setSources([]);
     const learnings = tasks.map((item) => item.learning);
-    const sources: Source[] = unique(
+    let sources: Source[] = unique(
       flat(tasks.map((item) => item.sources || [])),
       (item) => item.url
     );
+
+    // Validate and enhance gene references if in gene research mode
+    if (researchMode === "gene" && sources.length > 0) {
+      try {
+        sources = await validateGeneReferences(sources);
+      } catch (error) {
+        console.error("Error validating gene references:", error);
+      }
+    }
+
     const images: ImageSource[] = unique(
       flat(tasks.map((item) => item.images || [])),
       (item) => item.url
@@ -721,6 +732,35 @@ function useDeepResearch() {
         );
       }
       if (reasoning) console.log(reasoning);
+
+      // Add gene-specific database queries if in gene research mode
+      if (researchMode === "gene") {
+        try {
+          const geneQueries = await generateGeneEnhancedQueries(
+            useTaskStore.getState().query || "",
+            reportPlan
+          );
+
+          if (geneQueries.length > 0) {
+            // Convert gene queries to SearchTask format
+            const geneSearchTasks: SearchTask[] = geneQueries.map(gq => ({
+              state: "unprocessed" as const,
+              learning: "",
+              query: gq.query,
+              researchGoal: `Database query for ${gq.database || 'biological databases'}`,
+              sources: [],
+              images: []
+            }));
+
+            // Append gene queries to existing queries
+            queries = [...queries, ...geneSearchTasks];
+            taskStore.update(queries);
+          }
+        } catch (error) {
+          console.error("Error generating gene-enhanced queries:", error);
+        }
+      }
+
       await runSearchTask(queries);
     } catch (err) {
       console.error(err);
