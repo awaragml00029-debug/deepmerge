@@ -54,31 +54,95 @@ export const geneReportPlanPrompt = `Given the following gene research query fro
 {query}
 </QUERY>
 
-Generate a comprehensive research plan for gene function analysis. Your plan should include these essential sections:
+Generate a comprehensive research plan for gene function analysis. Your plan should include these essential sections, with SPECIFIC research questions for each:
 
-1. **Gene Overview** - Basic gene information, nomenclature, and genomic context
-2. **Molecular Function** - Catalytic activity, protein domains, and biochemical properties
-3. **Protein Structure** - 3D structure, functional domains, and active sites
-4. **Regulatory Mechanisms** - Transcriptional, post-transcriptional, and post-translational regulation
-5. **Expression Patterns** - Tissue-specific expression, developmental regulation, and environmental responses
-6. **Protein Interactions** - Protein-protein interactions, complexes, and networks
-7. **Evolutionary Conservation** - Orthologs, paralogs, and evolutionary relationships
-8. **Disease Associations** - Mutations, polymorphisms, and disease phenotypes
-9. **Therapeutic Implications** - Drug targets, therapeutic strategies, and clinical relevance
-10. **Research Gaps** - Current limitations and future research directions
+## Required Format for Each Section:
 
-**IMPORTANT: Do NOT include the following sections in your research plan:**
+### [Section Title]
+**Research Goal**: [One sentence describing what we want to learn]
+**Key Questions**:
+- [Specific question 1]
+- [Specific question 2]
+- [Specific question 3 if relevant]
+
+## Essential Sections to Include:
+
+### 1. Gene Overview
+Basic gene information, nomenclature, and genomic context
+- Gene symbol, aliases, and official nomenclature
+- Chromosomal location and genomic coordinates
+- Gene structure (exons, introns, isoforms)
+
+### 2. Molecular Function
+Catalytic activity, protein domains, and biochemical properties
+- Enzymatic activity and substrate specificity
+- Protein domains and functional motifs
+- Cofactors and binding sites
+
+### 3. Protein Structure
+3D structure, functional domains, and active sites
+- Known crystal structures and structural data
+- Functional domains and their roles
+- Active sites and binding pockets
+
+### 4. Regulatory Mechanisms
+Transcriptional, post-transcriptional, and post-translational regulation
+- Transcription factors and promoter elements
+- mRNA stability and post-transcriptional control
+- Post-translational modifications
+
+### 5. Expression Patterns
+Tissue-specific expression, developmental regulation, and environmental responses
+- Tissue and cell-type specificity
+- Developmental stage expression
+- Response to environmental stimuli
+
+### 6. Protein Interactions
+Protein-protein interactions, complexes, and networks
+- Known binding partners
+- Protein complexes and their functions
+- Signaling pathways and networks
+
+### 7. Evolutionary Conservation
+Orthologs, paralogs, and evolutionary relationships
+- Conservation across species
+- Ortholog and paralog relationships
+- Functional conservation and divergence
+
+### 8. Disease Associations
+Mutations, polymorphisms, and disease phenotypes
+- Known disease-causing mutations
+- Polymorphisms and clinical significance
+- Phenotypic consequences
+
+### 9. Therapeutic Implications
+Drug targets, therapeutic strategies, and clinical relevance
+- Potential as therapeutic target
+- Existing drugs or compounds
+- Clinical applications and trials
+
+### 10. Research Gaps
+Current limitations and future research directions
+- Unanswered questions
+- Technical limitations
+- Future research opportunities
+
+**IMPORTANT FORMATTING REQUIREMENTS:**
+1. For each section, provide a clear research goal statement
+2. List 2-4 specific, answerable research questions
+3. Questions should guide literature search and data collection
+4. Focus on gene function and molecular mechanisms
+5. Be specific enough to generate targeted database queries
+
+**DO NOT include these sections:**
 - Data Availability & Reproducibility Bundle
 - Code & Protocols
 - Strain & Plasmid Requests
 - Materials and Methods
 - Supplementary Information
-- Author Contributions
-- Funding Information
-- Competing Interests
-- Ethics Statements
+- Author Contributions, Funding, Competing Interests, Ethics Statements
 
-Each section should have a clear research goal and specific questions to investigate, focusing exclusively on gene function and molecular mechanisms.`;
+Your output should be a detailed research plan that can guide comprehensive gene function investigation.`;
 
 export const geneSerpQueriesPrompt = `This is the gene research plan after user confirmation:
 <PLAN>
