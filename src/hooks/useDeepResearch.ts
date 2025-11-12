@@ -139,15 +139,16 @@ function useDeepResearch() {
 
   async function askQuestions() {
     const { question } = useTaskStore.getState();
+    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchSettings = await generateSearchSettings(thinkingModel);
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(),
+      system: getSystemPrompt(researchMode),
       prompt: [
-        generateQuestionsPrompt(question),
+        generateQuestionsPrompt(question, researchMode),
         getResponseLanguagePrompt(),
       ].join("\n\n"),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -177,14 +178,15 @@ function useDeepResearch() {
 
   async function writeReportPlan() {
     const { query } = useTaskStore.getState();
+    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchSettings = await generateSearchSettings(thinkingModel);
     const result = streamText({
       ...searchSettings,
-      system: getSystemPrompt(),
-      prompt: [writeReportPlanPrompt(query), getResponseLanguagePrompt()].join(
+      system: getSystemPrompt(researchMode),
+      prompt: [writeReportPlanPrompt(query, researchMode), getResponseLanguagePrompt()].join(
         "\n\n"
       ),
       experimental_transform: smoothTextStream(smoothTextStreamType),
@@ -227,10 +229,11 @@ function useDeepResearch() {
     }
 
     const { networkingModel } = getModel();
+    const { researchMode } = useSettingStore.getState();
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const searchResult = streamText({
       model: await createModelProvider(networkingModel),
-      system: getSystemPrompt(),
+      system: getSystemPrompt(researchMode),
       prompt: [
         processSearchKnowledgeResultPrompt(query, researchGoal, knowledges),
         getResponseLanguagePrompt(),
@@ -328,15 +331,17 @@ function useDeepResearch() {
               }
               const enableReferences =
                 sources.length > 0 && references === "enable";
+              const { researchMode } = useSettingStore.getState();
               searchResult = streamText({
                 model: await createModelProvider(networkingModel),
-                system: getSystemPrompt(),
+                system: getSystemPrompt(researchMode),
                 prompt: [
                   processSearchResultPrompt(
                     item.query,
                     item.researchGoal,
                     sources,
-                    enableReferences
+                    enableReferences,
+                    researchMode
                   ),
                   getResponseLanguagePrompt(),
                 ].join("\n\n"),
@@ -344,12 +349,13 @@ function useDeepResearch() {
                 onError: handleError,
               });
             } else {
+              const { researchMode } = useSettingStore.getState();
               const searchSettings = await generateSearchSettings(
                 networkingModel
               );
               searchResult = streamText({
                 ...searchSettings,
-                system: getSystemPrompt(),
+                system: getSystemPrompt(researchMode),
                 prompt: [
                   processResultPrompt(item.query, item.researchGoal),
                   getResponseLanguagePrompt(),
@@ -359,9 +365,10 @@ function useDeepResearch() {
               });
             }
           } else {
+            const { researchMode } = useSettingStore.getState();
             searchResult = streamText({
               model: await createModelProvider(networkingModel),
-              system: getSystemPrompt(),
+              system: getSystemPrompt(researchMode),
               prompt: [
                 processResultPrompt(item.query, item.researchGoal),
                 getResponseLanguagePrompt(),
@@ -454,13 +461,14 @@ function useDeepResearch() {
 
   async function reviewSearchResult() {
     const { reportPlan, tasks, suggestion } = useTaskStore.getState();
+    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.research"));
     const learnings = tasks.map((item) => item.learning);
     const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
     const result = streamText({
       model: await createModelProvider(thinkingModel),
-      system: getSystemPrompt(),
+      system: getSystemPrompt(researchMode),
       prompt: [
         reviewSerpQueriesPrompt(reportPlan, learnings, suggestion),
         getResponseLanguagePrompt(),
@@ -509,7 +517,7 @@ function useDeepResearch() {
   }
 
   async function writeFinalReport() {
-    const { citationImage, references, useFileFormatResource } =
+    const { citationImage, references, useFileFormatResource, researchMode } =
       useSettingStore.getState();
     const {
       reportPlan,
@@ -582,7 +590,8 @@ function useDeepResearch() {
             requirement,
             enableCitationImage,
             enableReferences,
-            enableFileFormatResource
+            enableFileFormatResource,
+            researchMode
           ),
           getResponseLanguagePrompt(),
         ].join("\n\n"),
@@ -599,7 +608,7 @@ function useDeepResearch() {
 
     const result = streamText({
       model: await createModelProvider(thinkingModel),
-      system: [getSystemPrompt(), outputGuidelinesPrompt].join("\n\n"),
+      system: [getSystemPrompt(researchMode), outputGuidelinesPrompt].join("\n\n"),
       messages: [
         {
           role: "user",
@@ -660,15 +669,16 @@ function useDeepResearch() {
 
   async function deepResearch() {
     const { reportPlan } = useTaskStore.getState();
+    const { researchMode } = useSettingStore.getState();
     const { thinkingModel } = getModel();
     setStatus(t("research.common.thinking"));
     try {
       const thinkTagStreamProcessor = new ThinkTagStreamProcessor();
       const result = streamText({
         model: await createModelProvider(thinkingModel),
-        system: getSystemPrompt(),
+        system: getSystemPrompt(researchMode),
         prompt: [
-          generateSerpQueriesPrompt(reportPlan),
+          generateSerpQueriesPrompt(reportPlan, researchMode),
           getResponseLanguagePrompt(),
         ].join("\n\n"),
         experimental_transform: smoothTextStream(smoothTextStreamType),

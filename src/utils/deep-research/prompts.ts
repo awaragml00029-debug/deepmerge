@@ -14,6 +14,15 @@ import {
   finalReportReferencesPrompt,
   finalReportPrompt,
 } from "@/constants/prompts";
+import {
+  geneResearchSystemInstruction,
+  geneResearchQuestionPrompt,
+  geneReportPlanPrompt,
+  geneSerpQueriesPrompt,
+  geneSearchResultPrompt,
+  geneFinalReportPrompt,
+} from "@/constants/gene-research-prompts";
+import type { ResearchMode } from "@/store/setting";
 
 export function getSERPQuerySchema() {
   return z
@@ -37,20 +46,32 @@ export function getSERPQueryOutputSchema() {
   return JSON.stringify(zodToJsonSchema(SERPQuerySchema), null, 4);
 }
 
-export function getSystemPrompt() {
-  return systemInstruction.replace("{now}", new Date().toISOString());
+export function getSystemPrompt(researchMode: ResearchMode = "general") {
+  const instruction = researchMode === "gene"
+    ? geneResearchSystemInstruction
+    : systemInstruction;
+  return instruction.replace("{now}", new Date().toISOString());
 }
 
-export function generateQuestionsPrompt(query: string) {
-  return systemQuestionPrompt.replace("{query}", query);
+export function generateQuestionsPrompt(query: string, researchMode: ResearchMode = "general") {
+  const prompt = researchMode === "gene"
+    ? geneResearchQuestionPrompt
+    : systemQuestionPrompt;
+  return prompt.replace("{query}", query);
 }
 
-export function writeReportPlanPrompt(query: string) {
-  return reportPlanPrompt.replace("{query}", query);
+export function writeReportPlanPrompt(query: string, researchMode: ResearchMode = "general") {
+  const prompt = researchMode === "gene"
+    ? geneReportPlanPrompt
+    : reportPlanPrompt;
+  return prompt.replace("{query}", query);
 }
 
-export function generateSerpQueriesPrompt(plan: string) {
-  return serpQueriesPrompt
+export function generateSerpQueriesPrompt(plan: string, researchMode: ResearchMode = "general") {
+  const prompt = researchMode === "gene"
+    ? geneSerpQueriesPrompt
+    : serpQueriesPrompt;
+  return prompt
     .replace("{plan}", plan)
     .replace("{outputSchema}", getSERPQueryOutputSchema());
 }
@@ -65,7 +86,8 @@ export function processSearchResultPrompt(
   query: string,
   researchGoal: string,
   results: Source[],
-  enableReferences: boolean
+  enableReferences: boolean,
+  researchMode: ResearchMode = "general"
 ) {
   const context = results.map(
     (result, idx) =>
@@ -73,8 +95,11 @@ export function processSearchResultPrompt(
         result.content
       }\n</content>`
   );
+  const prompt = researchMode === "gene"
+    ? geneSearchResultPrompt
+    : searchResultPrompt;
   return (
-    searchResultPrompt + (enableReferences ? `\n\n${citationRulesPrompt}` : "")
+    prompt + (enableReferences ? `\n\n${citationRulesPrompt}` : "")
   )
     .replace("{query}", query)
     .replace("{researchGoal}", researchGoal)
@@ -121,7 +146,8 @@ export function writeFinalReportPrompt(
   requirement: string,
   enableCitationImage: boolean,
   enableReferences: boolean,
-  enableFileFormatResource: boolean
+  enableFileFormatResource: boolean,
+  researchMode: ResearchMode = "general"
 ) {
   const learnings = learning.map(
     (detail) => `<learning>\n${detail}\n</learning>`
@@ -133,8 +159,14 @@ export function writeFinalReportPrompt(
   const imageList = images.map(
     (source, idx) => `${idx + 1}. ![${source.description}](${source.url})`
   );
+
+  // Use gene-specific prompt for gene research mode
+  const basePrompt = researchMode === "gene"
+    ? geneFinalReportPrompt
+    : finalReportPrompt;
+
   return (
-    finalReportPrompt +
+    basePrompt +
     (enableCitationImage
       ? `\n**Including meaningful images from the previous research in the report is very helpful.**\n\n${finalReportCitationImagePrompt}`
       : "") +
