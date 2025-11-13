@@ -42,9 +42,20 @@ export function BalanceButton() {
     window.open(getRechargeURL(), '_blank');
   };
 
-  // Don't show if not validated
+  // If not validated, show a placeholder button
   if (!isFeatureEnabled()) {
-    return null;
+    return (
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 px-3 gap-2 text-gray-400 dark:text-gray-600 cursor-not-allowed"
+        disabled
+        title="Please set NewAPI token in Settings to see balance"
+      >
+        <Coins className="h-4 w-4" />
+        <span className="text-sm">--</span>
+      </Button>
+    );
   }
 
   const isLow = isBalanceLow();
