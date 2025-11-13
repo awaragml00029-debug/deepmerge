@@ -55,6 +55,7 @@ export interface SettingStore {
   ollamaApiProxy: string;
   ollamaThinkingModel: string;
   ollamaNetworkingModel: string;
+  newApiToken: string;
   accessPassword: string;
   thinkingModel: string;
   networkingModel: string;
@@ -144,6 +145,7 @@ export const defaultValues: SettingStore = {
   ollamaApiProxy: "",
   ollamaThinkingModel: "",
   ollamaNetworkingModel: "",
+  newApiToken: "",
   accessPassword: "",
   enableSearch: "1",
   searchProvider: "model",

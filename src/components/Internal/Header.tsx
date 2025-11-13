@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { Settings, Github, History, BookText } from "lucide-react";
 import { Button } from "@/components/Internal/Button";
 import { useGlobalStore } from "@/store/global";
+import { ThemeSelector } from "@/components/Internal/ThemeSelector";
+import { BalanceButton } from "@/components/Internal/BalanceButton";
 
 const VERSION = process.env.NEXT_PUBLIC_VERSION;
 
@@ -19,7 +21,8 @@ function Header() {
             <small className="ml-2 font-normal text-base">v{VERSION}</small>
           </h1>
         </a>
-        <div className="flex">
+        <div className="flex items-center gap-1">
+          <BalanceButton />
           <a href="https://github.com/u14app/deep-research" target="_blank">
             <Button
               className="h-8 w-8"
@@ -48,6 +51,7 @@ function Header() {
           >
             <BookText />
           </Button>
+          <ThemeSelector />
           <Button
             className="h-8 w-8"
             title={t("setting.title")}

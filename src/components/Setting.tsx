@@ -51,6 +51,9 @@ import {
 } from "@/components/ui/tooltip";
 import useModel from "@/hooks/useModelList";
 import { useSettingStore } from "@/store/setting";
+import { useAuthStore } from "@/store/auth";
+import { useThemeStore } from "@/store/theme";
+import { validateNewAPIToken } from "@/utils/newapi";
 import {
   GEMINI_BASE_URL,
   OPENROUTER_BASE_URL,
@@ -147,6 +150,7 @@ const formSchema = z.object({
   ollamaApiProxy: z.string().optional(),
   ollamaThinkingModel: z.string().optional(),
   ollamaNetworkingModel: z.string().optional(),
+  newApiToken: z.string().optional(),
   accessPassword: z.string().optional(),
   enableSearch: z.string(),
   searchProvider: z.string().optional(),
@@ -223,6 +227,7 @@ function Setting({ open, onClose }: SettingProps) {
   const { modelList, refresh } = useModel();
   const pwaInstall = usePWAInstall();
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
   const thinkingModelList = useMemo(() => {
     const { provider } = useSettingStore.getState();
@@ -314,9 +319,60 @@ function Setting({ open, onClose }: SettingProps) {
     if (!open) onClose();
   }
 
-  function handleSubmit(values: z.infer<typeof formSchema>) {
-    update(values);
-    onClose();
+  async function handleSubmit(values: z.infer<typeof formSchema>) {
+    setIsSaving(true);
+
+    try {
+      const { newApiToken } = values;
+      const currentToken = useSettingStore.getState().newApiToken;
+
+      // Check if NewAPI token has changed
+      if (newApiToken && newApiToken !== currentToken) {
+        // Set validating status
+        useAuthStore.getState().setKeyStatus('validating');
+
+        try {
+          // Validate the token
+          const result = await validateNewAPIToken(newApiToken);
+
+          if (result.valid) {
+            // Update auth store with validated token and balance
+            useAuthStore.getState().setToken(newApiToken);
+            useAuthStore.getState().setKeyStatus('validated');
+
+            if (result.balance !== undefined && result.used !== undefined) {
+              // Note: setBalance expects values in 1/1000 dollar, but API returns in dollars
+              useAuthStore.getState().setBalance(result.balance * 1000, result.used * 1000);
+            }
+
+            // Trigger random theme on successful validation
+            useThemeStore.getState().setRandomTheme();
+
+            toast.success('NewAPI token validated successfully!');
+          } else {
+            // Validation failed
+            useAuthStore.getState().setKeyStatus('failed');
+            toast.error(`Token validation failed: ${result.error || 'Unknown error'}`);
+            return; // Don't save settings if validation failed
+          }
+        } catch {
+          useAuthStore.getState().setKeyStatus('failed');
+          toast.error('Token validation failed: Network error');
+          return; // Don't save settings if validation failed
+        }
+      } else if (!newApiToken && currentToken) {
+        // Token was cleared - reset auth state
+        useAuthStore.getState().setToken('');
+        useAuthStore.getState().setKeyStatus('unset');
+        useAuthStore.getState().setBalance(0, 0);
+      }
+
+      // Save all settings
+      update(values);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   const fetchModelList = useCallback(async () => {
@@ -3434,6 +3490,30 @@ function Setting({ open, onClose }: SettingProps) {
               <TabsContent className="space-y-4 min-h-[250px]" value="general">
                 <FormField
                   control={form.control}
+                  name="newApiToken"
+                  render={({ field }) => (
+                    <FormItem className="from-item">
+                      <FormLabel className="from-label">
+                        <HelpTip tip="NewAPI token for unified API access and balance management">
+                          NewAPI Token
+                        </HelpTip>
+                      </FormLabel>
+                      <FormControl>
+                        <Password
+                          {...field}
+                          className="form-field"
+                          placeholder="sk-..."
+                          onChange={(e) => {
+                            field.onChange(e);
+                            updateSetting("newApiToken", e.target.value);
+                          }}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
                   name="language"
                   render={({ field }) => (
                     <FormItem className="from-item">
@@ -3723,14 +3803,15 @@ function Setting({ open, onClose }: SettingProps) {
           </form>
         </Form>
         <DialogFooter className="mt-2 flex-row sm:justify-between sm:space-x-0 gap-3">
-          <Button className="flex-1" variant="outline" onClick={onClose}>
+          <Button className="flex-1" variant="outline" onClick={onClose} disabled={isSaving}>
             {t("setting.cancel")}
           </Button>
           <Button
             className="flex-1"
             onClick={() => handleSubmit(form.getValues())}
+            disabled={isSaving}
           >
-            {t("setting.save")}
+            {isSaving ? "Saving..." : t("setting.save")}
           </Button>
         </DialogFooter>
       </DialogContent>
