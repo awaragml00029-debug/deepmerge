@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import Script from "next/script";
 import ThemeProvider from "@/components/Provider/Theme";
 import I18Provider from "@/components/Provider/I18n";
+import { ThemeColorProvider } from "@/components/Provider/ThemeColorProvider";
 import Debugger from "@/components/Internal/Debugger";
 import { Toaster } from "@/components/ui/sonner";
 
@@ -83,7 +84,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <I18Provider>{children}</I18Provider>
+          <ThemeColorProvider>
+            <I18Provider>{children}</I18Provider>
+          </ThemeColorProvider>
         </ThemeProvider>
         <Toaster richColors toastOptions={{ duration: 3000 }} />
       </body>

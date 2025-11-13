@@ -74,13 +74,53 @@ export const useThemeStore = create<ThemeStore>()(
         const theme = THEMES[themeId];
         const root = document.documentElement;
 
-        // Apply CSS variables
-        root.style.setProperty('--color-primary', theme.primary);
-        root.style.setProperty('--color-secondary', theme.secondary);
-        root.style.setProperty('--color-accent', theme.accent);
+        // Apply custom theme CSS variables
+        root.style.setProperty('--theme-primary', theme.primary);
+        root.style.setProperty('--theme-secondary', theme.secondary);
+        root.style.setProperty('--theme-accent', theme.accent);
 
         // Also set data attribute for CSS selectors
         root.setAttribute('data-theme', themeId);
+
+        // Apply inline styles to make the theme visible immediately
+        // Override some key UI elements
+        const style = document.getElementById('dynamic-theme-style') || document.createElement('style');
+        style.id = 'dynamic-theme-style';
+        style.textContent = `
+          /* Apply theme colors to buttons and links */
+          [data-theme="${themeId}"] button:not([variant="ghost"]):not([variant="outline"]):hover,
+          [data-theme="${themeId}"] .hover\\:text-blue-500:hover {
+            color: ${theme.primary} !important;
+          }
+
+          /* Apply to primary buttons */
+          [data-theme="${themeId}"] button[class*="bg-primary"],
+          [data-theme="${themeId}"] [class*="bg-blue-"] {
+            background-color: ${theme.primary} !important;
+          }
+
+          /* Apply to text colors */
+          [data-theme="${themeId}"] .text-blue-500,
+          [data-theme="${themeId}"] [class*="text-blue-"] {
+            color: ${theme.primary} !important;
+          }
+
+          /* Apply to borders */
+          [data-theme="${themeId}"] [class*="border-blue-"],
+          [data-theme="${themeId}"] [class*="ring-blue-"] {
+            border-color: ${theme.primary} !important;
+            --tw-ring-color: ${theme.primary} !important;
+          }
+
+          /* Theme selector ring color */
+          [data-theme="${themeId}"] button[style*="background-color"][class*="ring-"] {
+            --tw-ring-color: ${theme.primary} !important;
+          }
+        `;
+
+        if (!document.getElementById('dynamic-theme-style')) {
+          document.head.appendChild(style);
+        }
       },
     }),
     {
